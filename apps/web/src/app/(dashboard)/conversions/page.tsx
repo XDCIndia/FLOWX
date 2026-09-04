@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { api, type QuoteResponse } from '@/lib/api';
-import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/lib/toast-context';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -14,9 +13,20 @@ import { Coins, ArrowRightLeft } from 'lucide-react';
 import type { RateResponse } from '@/lib/api';
 
 export default function ConversionsPage() {
-  const { getStoredWalletIds } = useAuth();
   const { toast } = useToast();
-  const walletIds = useMemo(() => getStoredWalletIds(), [getStoredWalletIds]);
+  const [wallets, setWallets] = useState<{id: string; public_key: string}[]>([]);
+
+  useEffect(() => {
+    fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000') + '/v1/wallets', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('apiKey') || ''}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const list = data.wallets || data || [];
+        setWallets(list.map((w: any) => ({ id: w.id, public_key: w.public_key })));
+      })
+      .catch(() => {});
+  }, []);
 
   const [fromAsset, setFromAsset] = useState('USDC');
   const [toAsset, setToAsset] = useState('XLM');
@@ -101,9 +111,9 @@ export default function ConversionsPage() {
                 <label className="text-sm font-medium">Wallet ID</label>
                 <Select value={walletId} onChange={(e) => setWalletId(e.target.value)} required>
                   <option value="">Select wallet</option>
-                  {walletIds.map((id) => (
-                    <option key={id} value={id}>
-                      {id.slice(0, 16)}...
+                  {wallets.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.public_key.slice(0, 10)}...{w.public_key.slice(-8)}
                     </option>
                   ))}
                 </Select>

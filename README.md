@@ -1,15 +1,8 @@
-# Fluxa
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
-
+# FlowX
 
 **Cross-border payment infrastructure for emerging markets.**
 
-Fluxa is a programmable payments API built on the [Stellar](https://stellar.org) network. It gives fintech products and developers the primitives to move value across borders — wallet management, internal transfers, FX conversion via Stellar path payments, and settlement — behind a clean REST API.
-
-[![Run in Postman](https://img.shields.io/badge/Run%20in%20Postman-FF6C37?style=for-the-badge&logo=postman&logoColor=white)](docs/fluxa.postman_collection.json)
-[![Environment](https://img.shields.io/badge/Environment-FF6C37?style=for-the-badge&logo=postman&logoColor=white)](docs/fluxa.postman_environment.json)
-[![Quickstart](https://img.shields.io/badge/Quickstart-36C5F0?style=for-the-badge&logo=readthedocs&logoColor=white)](docs/quickstart.md)
-[![Errors](https://img.shields.io/badge/Error%20Reference-CD5C5C?style=for-the-badge&logo=readthedocs&logoColor=white)](docs/errors.md)
+FlowX is a programmable payments API built on the [XDC Network](https://xdc.org). It gives fintech products and developers the primitives to move value across borders — wallet management, internal transfers, FX conversion, batch payments, scheduled payouts, and fiat on/off-ramps — behind a clean REST API.
 
 > **Status**: Active development — testnet only.
 
@@ -17,96 +10,57 @@ Fluxa is a programmable payments API built on the [Stellar](https://stellar.org)
 
 ## What it does
 
-- ✅ **Wallets** — create Stellar accounts with AES-256-GCM encrypted secrets; never expose raw keys
-- ✅ **Transfers** — async payment submission with queue-backed retry and status polling
-- ✅ **FX / Conversion** — quote and execute cross-asset swaps via Stellar DEX path payments
-- ✅ **Settlement** — background worker submits transactions to Stellar, handles retries, confirms on-chain
-- ✅ **Ledger indexer** — streams Horizon events to keep local state in sync
-- ✅ **Multi-tenant** — API key + JWT auth; individual developers and business organizations each get scoped access
+- ✅ **Wallets** — create XDC wallets with encrypted private keys
+- ✅ **Transfers** — instant on-chain XDC transfers with tx hash
+- ✅ **FX / Conversion** — real-time rates from CoinGecko, execute USDC ↔ TXDC swaps
+- ✅ **Batch Payments** — send up to 100 transfers in one API call
+- ✅ **Scheduled Payouts** — recurring daily/weekly/monthly transfers
+- ✅ **Fiat Rails** — deposit/withdraw via Flutterwave/Stripe (mock mode)
+- ✅ **Multi-currency** — NGN, USD, EUR, GBP, INR, KES, GHS, ZAR
 - ✅ **Webhooks** — signed delivery of payment events to developer endpoints
-- 🔜 **Sandbox mode** — `sk_test_` keys route to Stellar testnet for safe integration testing
-- ✅ **Recurring payouts** — scheduled transfers with daily/weekly/monthly cadence
-- ✅ **Fiat rails** — deposit/withdrawal via Flutterwave integration
-- ✅ **Organization management** — invite members, role-based access control (owner/admin/dev/viewer)
+- ✅ **Route Engine** — compare bank (Stripe), payment network (Ripple ODL), and blockchain (XDC) routes
+- ✅ **Compliance** — velocity checks, spending limits, guardian wallets
+- ✅ **Fee Management** — configurable transfer and conversion fees
+- ✅ **Test Faucets** — get test USDC and real on-chain TXDC from treasury
+
+---
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| **Backend** | Go 1.22 + Chi router |
+| **Frontend** | Next.js 14 + TypeScript + Tailwind CSS |
+| **Database** | PostgreSQL 15 |
+| **Cache** | Redis 7 |
+| **Blockchain** | XDC Network (Apothem Testnet) |
+| **FX Rates** | CoinGecko API |
+| **Payment Rails** | Stripe, Flutterwave, Ripple ODL |
 
 ---
 
 ## Architecture
 
 ```
-Client Applications
-        │  Authorization: Bearer sk_live_... or sk_test_...
-        ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      Fluxa REST API                             │
-│  Chi router │ JWT + API key auth │ Rate limiting │ Tenant scope │
+│                    FlowX REST API (Go)                           │
+│  Chi router │ JWT + API key auth │ Rate limiting │ Multi-tenant │
 └─────────────────────────────────────────────────────────────────┘
         │
         ├── Wallet Service       ──► postgres: wallets, balances
         ├── Transfer Service     ──► postgres: transactions
-        ├── FX Service           ──► Stellar DEX + rate cache (Redis)
+        ├── FX Service           ──► CoinGecko + rate cache (Redis)
+        ├── Batch Service        ──► postgres: batches, batch_items
+        ├── Schedule Service     ──► postgres: schedules
+        ├── Fiat Service         ──► Flutterwave/Stripe adapters
+        ├── Routing Service      ──► bank/payment/blockchain routes
         ├── Fee Service          ──► postgres: fees, fee_collections
-        └── Webhook Dispatcher   ──► postgres: webhook_endpoints, deliveries
-                │
-                ▼  (Asynq job queue)
-        ┌────────────────────────────────────────┐
-        │           Background Worker             │
-        │  Settlement Engine │ Ledger Indexer     │
-        │  Reconciliation    │ Scheduler          │
-        └────────────────────────────────────────┘
+        └── Webhook Dispatcher   ──► postgres: webhook_endpoints
                 │
                 ▼
-        Stellar Network (Horizon API + Soroban RPC)
-        testnet: horizon-testnet.stellar.org
-        mainnet: horizon.stellar.org
-```
-
-**Two processes**
-
-| Binary | Role |
-|---|---|
-| `cmd/api` | HTTP server — handles all REST requests, enqueues async work |
-| `cmd/worker` | Asynq worker — settles transfers, runs ledger indexer, processes webhooks |
-
-Transfers are **asynchronous**. `POST /v1/transfers` returns `202 Accepted` with a `pending` transaction immediately. Poll `GET /v1/transfers/:id` or receive a `transfer.settled` webhook for the final status. A transfer stopped by compliance screening comes back as `compliance_hold` instead of `pending` and is not settled until it is approved.
-
----
-
-## Project Structure
-
-```
-fluxa/
-├── cmd/
-│   ├── api/main.go           # HTTP server entry point
-│   └── worker/main.go        # Background worker entry point
-├── internal/
-│   ├── config/               # Viper env config
-│   ├── domain/               # Core types: Wallet, Transaction, Conversion, errors
-│   ├── crypto/               # AES-256-GCM encrypt/decrypt (stdlib only)
-│   ├── assets/               # Asset registry: USDC/EURC issuers per network
-│   ├── stellar/              # Horizon client, keypair generation, signer interface
-│   ├── postgres/             # pgx/v5 repository implementations
-│   ├── queue/                # Asynq client + task type definitions
-│   ├── wallet/               # Wallet service + HTTP handler
-│   ├── transfer/             # Transfer service + HTTP handler
-│   ├── batch/                # Batch transfers + CSV export, reuses transfer settlement
-│   ├── schedule/             # Recurring payouts + Asynq periodic task
-│   ├── fx/                   # FX service + rate providers + HTTP handler
-│   ├── fees/                 # Fee calculation and collection
-│   ├── settlement/           # Settlement engine + Asynq task handler
-│   ├── indexer/              # Ledger indexer + Asynq periodic task
-│   ├── webhook/              # Webhook dispatcher + delivery worker
-│   ├── reconcile/            # DB vs on-chain reconciliation
-│   ├── apikey/               # API key generation, hashing, verification
-│   ├── auth/                 # User registration, login, JWT
-│   ├── org/                  # Organization members, roles
-│   ├── fiat/                 # Fiat rail abstraction + provider adapters
-│   ├── alerting/             # Alerting client for platform notifications
-│   ├── tenant/               # Tenant context helpers
-│   ├── server/               # Chi router setup, middleware
-│   └── api/                  # Shared request validation + response helpers
-└── db/
-    └── migrations/           # golang-migrate SQL files (numbered up/down pairs)
+        XDC Network (Apothem Testnet)
+        RPC: https://rpc.apothem.network
+        Explorer: https://testnet.xdcscan.com
 ```
 
 ---
@@ -116,240 +70,216 @@ fluxa/
 ### Prerequisites
 
 - Go 1.22+
+- Node.js 18+
 - PostgreSQL 15+
 - Redis 7+
+- Docker & Docker Compose
 
-The repository root is a Go backend workspace. It does not require root-level
-Node.js, TypeScript, Prisma, or BullMQ tooling to build or run the API and
-worker.
-
-### 1. Clone and install
+### Quick Start with Docker
 
 ```bash
-git clone https://github.com/Savitura/Fluxa
-cd Fluxa
+git clone https://github.com/XDCIndia/FLOWX
+cd FLOWX
+
+# Start all services
+docker-compose up -d
+
+# Run migrations
+docker exec -i fluxa-postgres-1 psql -U fluxa -d fluxa < db/migrations/*.sql
+
+# Open the app
+open http://localhost:3001
+```
+
+### Manual Setup
+
+```bash
+# 1. Clone and install
+git clone https://github.com/XDCIndia/FLOWX
+cd FLOWX
 go mod tidy
-```
 
-### 2. Configure environment
-
-```bash
+# 2. Configure environment
 cp .env.example .env
-```
+# Edit .env with your settings
 
-| Variable | Description |
-|---|---|
-| `PORT` | HTTP listen port (default: `3000`) |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `REDIS_URL` | Redis connection string |
-| `STELLAR_NETWORK` | `testnet` or `mainnet` |
-| `STELLAR_HORIZON_URL` | Horizon endpoint |
-| `STELLAR_USDC_ISSUER` | USDC issuer public key |
-| `MASTER_ENCRYPTION_KEY` | 64 hex chars (32 bytes) — encrypts stored wallet secrets |
-| `PLATFORM_FEE_WALLET_PUBLIC_KEY` | Stellar address where platform fees are collected |
-| `TREASURY_SECRET_KEY` | Stellar key that funds new accounts (testnet: leave empty, use Friendbot) |
+# 3. Start PostgreSQL and Redis
+docker-compose up -d postgres redis
 
-Generate a master key:
-```bash
-openssl rand -hex 32
-```
-
-### 3. Run migrations
-
-```bash
+# 4. Run migrations
 make migrate
-```
 
-### 4. Start the API and worker
-
-```bash
-# Terminal 1
+# 5. Start the API
 make run-api
 
-# Terminal 2
+# 6. Start the worker
 make run-worker
+
+# 7. Start the frontend
+cd apps/web
+npm install
+npm run dev
 ```
+
+---
+
+## Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `PORT` | API listen port (default: 3000) | No |
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `REDIS_URL` | Redis connection string | Yes |
+| `XDC_RPC_URL` | XDC RPC endpoint | Yes |
+| `XDC_TREASURY_SECRET_KEY` | Treasury wallet private key | Yes |
+| `MASTER_ENCRYPTION_KEY` | 32-byte hex key for encryption | Yes |
+| `JWT_SECRET` | JWT signing secret | Yes |
+| `STRIPE_SECRET_KEY` | Stripe API key (for bank payments) | No |
+| `FLUTTERWAVE_SECRET_KEY` | Flutterwave API key (for fiat) | No |
 
 ---
 
 ## API Reference
 
-All endpoints are prefixed `/v1`. Auth: `Authorization: Bearer <api_key_or_jwt>`. Errors:
-
-```json
-{ "error": { "code": "WALLET_NOT_FOUND", "message": "wallet not found" } }
-```
+All endpoints are prefixed `/v1`. Auth: `Authorization: Bearer <api_key>`.
 
 ### Authentication
 
 ```http
-POST /v1/auth/register     Create account (individual or organization)
+POST /v1/auth/register     Create account
 POST /v1/auth/login        Login — returns JWT
-POST /v1/auth/refresh      Refresh access token
-POST /v1/keys              Create API key  →  sk_live_... or sk_test_...
-GET  /v1/keys              List keys (prefix only, never raw)
-DELETE /v1/keys/:id        Revoke key
+POST /v1/keys              Create API key → sk_live_...
 ```
 
 ### Wallets
 
 ```http
-POST /v1/wallets           Create wallet — returns public key only
-GET  /v1/wallets/:id/balances   Live balances from Horizon (all assets)
-POST /v1/wallets/:id/trustlines  Add Stellar trustline for a new asset
+GET  /v1/wallets                   List wallets
+POST /v1/wallets                   Create wallet
+GET  /v1/wallets/:id               Get wallet details
+GET  /v1/wallets/:id/balances      Get balances
+POST /v1/wallets/:id/faucet        Get test tokens (USDC/TXDC)
+DELETE /v1/wallets/:id             Delete wallet
 ```
 
 ### Transfers
 
 ```http
-POST /v1/transfers         Initiate transfer (202 Accepted — async)
-GET  /v1/transfers/:id     Poll status
-GET  /v1/transfers         List (filter by wallet, status, date)
-POST /v1/transfers/batch   Up to 100 transfers in one call
-GET  /v1/transfers/batch/:batchId          Batch status with per-transfer breakdown
-GET  /v1/transfers/batch/:batchId/export   CSV download of batch results
+POST /v1/transfers                 Create transfer
+GET  /v1/transfers/:id             Get transfer status
+GET  /v1/transactions              List transactions
 ```
 
-**Status flow:** `pending` → `confirmed` | `failed`
+### FX / Conversion
 
-**Batch status** is derived live from its linked transactions: `pending` → `processing` → `partial` | `completed` | `failed`.
+```http
+GET  /v1/fx/rates?from=USDC&to=TXDC    Get exchange rate
+POST /v1/fx/quote                       Get conversion quote
+POST /v1/fx/convert                     Execute conversion
+```
+
+### Batch Payments
+
+```http
+POST /v1/transfers/batch           Create batch (up to 100 transfers)
+GET  /v1/transfers/batch/:id       Get batch status
+GET  /v1/transfers/batch/:id/export  Export as CSV
+```
 
 ### Scheduled Payouts
 
 ```http
-POST   /v1/schedules       Create a recurring transfer (daily | weekly | monthly)
-GET    /v1/schedules       List schedules
-PATCH  /v1/schedules/:id   Pause, resume, or update amount/frequency/end_date
-DELETE /v1/schedules/:id   Cancel a schedule
-```
-
-A background worker checks for due schedules every minute and enqueues a normal transfer for each one — a paused schedule is skipped until resumed.
-
-### FX
-
-```http
-POST /v1/fx/quote          Get a 30-second exchange rate quote
-POST /v1/fx/convert        Execute a currency swap
-GET  /v1/fx/rates          Live rates for a currency pair
-```
-
-### Webhooks
-
-```http
-POST   /v1/webhooks        Register endpoint + event subscriptions
-GET    /v1/webhooks        List endpoints
-DELETE /v1/webhooks/:id    Remove endpoint
-GET    /v1/webhooks/:id/deliveries  Delivery log
-```
-
-**Event types:** `transfer.initiated` · `transfer.settled` · `transfer.failed` · `wallet.funded` · `conversion.completed` · `transfer.compliance_hold` · `transfer.compliance_approved` · `transfer.compliance_rejected` · `sanctions.refresh_failed`
-
-### Fees
-
-```http
-GET /v1/fees               Your fee schedule (transfer/conversion fee rates)
-```
-
-### Organization
-
-```http
-POST /v1/org/members/invite     Invite member to organization
-GET  /v1/org/members            List organization members
-PATCH  /v1/org/members/{userId}   Update member role
-DELETE /v1/org/members/{userId}   Remove member
-POST /v1/org/invites/accept     Accept organization invite (public)
+POST /v1/schedules                 Create schedule
+GET  /v1/schedules                 List schedules
+PATCH /v1/schedules/:id            Pause/resume schedule
+DELETE /v1/schedules/:id           Cancel schedule
 ```
 
 ### Fiat Rails
 
 ```http
-POST /v1/wallets/{id}/deposit/fiat   Initiate fiat deposit
-POST /v1/wallets/{id}/withdraw/fiat  Initiate fiat withdrawal
-POST /v1/webhooks/fiat/{provider}   Fiat provider webhook receiver
+POST /v1/wallets/:id/deposit/fiat       Initiate fiat deposit
+POST /v1/wallets/:id/deposit/fiat/simulate  Simulate deposit (demo)
+POST /v1/wallets/:id/withdraw/fiat      Initiate fiat withdrawal
 ```
 
-### Compliance (Owner & Admin only)
-
-Every transfer is screened before it is enqueued for settlement. A blocked
-transfer is refused with `403 TRANSFER_BLOCKED_SANCTIONS` and no transaction
-is created; a held transfer is persisted as `compliance_hold` and waits for a
-decision here.
+### Webhooks
 
 ```http
-GET  /v1/admin/compliance/reviews              List held transfers (filter: ?status=pending)
-GET  /v1/admin/compliance/reviews/{id}         Get a single review
-POST /v1/admin/compliance/reviews/{id}/approve Release a held transfer for settlement
-POST /v1/admin/compliance/reviews/{id}/reject  Reject a held transfer
-GET  /v1/admin/compliance/sanctions-status     OFAC SDN list state and last refresh
+POST /v1/webhooks                  Register webhook endpoint
+GET  /v1/webhooks                  List endpoints
+DELETE /v1/webhooks/:id            Delete endpoint
+GET  /v1/webhooks/:id/deliveries   List delivery logs
+POST /v1/webhooks/verify           Verify webhook signature
 ```
 
-Screening **fails closed**: if the sanctions list cannot be loaded, transfers
-are held for review rather than cleared. Check `sanctions-status` if every
-transfer is suddenly being held — `loaded: false` is the signal.
-
-### Health
+### Payments (Multi-route)
 
 ```http
-GET /health                Health check
+POST /v1/payments/compare          Compare routes (bank/XDC/blockchain)
+POST /v1/payments/execute          Execute payment via selected route
+```
+
+### Other
+
+```http
+GET  /v1/fees                      Fee schedule
+GET  /v1/usage                     Usage statistics
+GET  /health                       Health check
 ```
 
 ---
 
-## Integration Resources
+## Demo Flow
 
-| Resource | Description |
-|---|---|
-| [Quickstart Guide](docs/quickstart.md) | End-to-end walkthrough from account creation to webhook delivery — with exact curl commands |
-| [Postman Collection](docs/fluxa.postman_collection.json) | Pre-configured requests for every endpoint, organised by folder, with tests and pre-request scripts |
-| [Postman Environment](docs/fluxa.postman_environment.json) | Testnet and mainnet environment variables — switch between targets with one click |
-| [Error Reference](docs/errors.md) | Complete list of every error code, HTTP status, description, resolution, and example response |
-
-```bash
-# Import the collection via the Postman CLI (requires Postman CLI installed)
-postman collection import docs/fluxa.postman_collection.json
-postman environment import docs/fluxa.postman_environment.json
-```
+1. **Create Account** → Get API key at `/login`
+2. **Create Wallet** → Get XDC wallet address
+3. **Get Test Tokens** → Click "Get TXDC" or "Get USDC" buttons
+4. **Convert Assets** → Swap USDC ↔ TXDC at live rates
+5. **Send Payment** → Transfer TXDC to another wallet
+6. **Batch Payment** → Send to multiple recipients at once
+7. **Schedule Payout** → Set up recurring transfers
+8. **Compare Routes** → See bank vs blockchain vs payment network options
 
 ---
 
-## Security
+## Frontend Pages
 
-- **Key storage**: Stellar secrets are encrypted with AES-256-GCM before storage. The 32-byte master key lives only in env — never in the database or logs.
-- **No key exposure**: Secret keys are never returned by any API endpoint.
-- **Signer abstraction**: `stellar.Signer` in `internal/stellar/signer.go` isolates all signing. Swap `EnvSigner` for HSM or AWS KMS without touching the settlement engine.
-- **Decimal arithmetic**: All monetary values use `shopspring/decimal` — no floating-point.
-- **API key hashing**: Raw keys are SHA-256 hashed before storage; the plaintext is shown exactly once on creation.
-
----
-
-## Development
-
-```bash
-make test          # go test ./... -race
-make test-cover    # with HTML coverage report
-make lint          # golangci-lint
-make build         # outputs bin/api + bin/worker
-make tidy          # go mod tidy
-```
-
-Fund a testnet wallet:
-```bash
-curl "https://friendbot.stellar.org?addr=<PUBLIC_KEY>"
-```
+| Page | URL | Description |
+|------|-----|-------------|
+| Landing | `/` | Marketing page |
+| Login | `/login` | Sign in / Create account |
+| Dashboard | `/overview` | System health overview |
+| Wallets | `/wallets` | Create/manage wallets, faucet |
+| Transfers | `/transfers` | Send XDC, view history |
+| FX | `/fx` | Live rates, convert assets |
+| Conversions | `/conversions` | Conversion history |
+| Batch | `/batch` | Batch transfers |
+| Schedules | `/schedules` | Recurring payouts |
+| Payments | `/payments` | Multi-route payment engine |
+| Fiat | `/fiat` | Deposit/withdraw fiat |
+| Webhooks | `/webhooks` | Manage webhook endpoints |
+| Usage | `/usage` | API usage & billing |
 
 ---
 
-## Part of Savitura
+## XDC Testnet
 
-- **[CrowdPay](https://github.com/Savitura/crowdpay)** — crowdfunding platform built on top of Fluxa payment rails
-- **[SaviTools](https://github.com/Savitura/Savitools)** — developer tools: API playground, transaction inspector, wallet sandbox
+- **Network**: Apothem Testnet
+- **Chain ID**: 51
+- **RPC**: https://rpc.apothem.network
+- **Explorer**: https://testnet.xdcscan.com
+- **Faucet**: https://faucet.apothem.network
+
+### Getting Test TXDC
+
+1. Create a wallet on the Wallets page
+2. Click "Get TXDC" button
+3. Treasury wallet sends real TXDC to your wallet
+4. View on [testnet.xdcscan.com](https://testnet.xdcscan.com)
 
 ---
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT
+MIT License - see [LICENSE](LICENSE) for details.

@@ -20,6 +20,7 @@ export default function SchedulesPage() {
   const { toast } = useToast();
   const walletIds = useMemo(() => getStoredWalletIds(), [getStoredWalletIds]);
 
+  const [wallets, setWallets] = useState<{id: string; public_key: string}[]>([]);
   const [schedules, setSchedules] = useState<ScheduleResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -33,6 +34,18 @@ export default function SchedulesPage() {
     start_date: new Date().toISOString().slice(0, 16),
     end_date: '',
   });
+
+  useEffect(() => {
+    fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000') + '/v1/wallets', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('flowx_api_key') || ''}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const list = data.wallets || data || [];
+        setWallets(list.map((w: any) => ({ id: w.id, public_key: w.public_key })));
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchSchedules = useCallback(async () => {
     setLoading(true);
@@ -133,11 +146,35 @@ export default function SchedulesPage() {
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">From Wallet</label>
-                  <Input value={form.from_wallet_id} onChange={(e) => setForm({ ...form, from_wallet_id: e.target.value })} placeholder="Enter wallet ID" required />
+                  <input
+                    list="from-wallets-sched"
+                    value={form.from_wallet_id}
+                    onChange={(e) => setForm({ ...form, from_wallet_id: e.target.value })}
+                    placeholder="Type or select wallet"
+                    required
+                    className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  />
+                  <datalist id="from-wallets-sched">
+                    {wallets.map((w) => (
+                      <option key={w.id} value={w.id}>{w.public_key.slice(0, 10)}...</option>
+                    ))}
+                  </datalist>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">To Wallet</label>
-                  <Input value={form.to_wallet_id} onChange={(e) => setForm({ ...form, to_wallet_id: e.target.value })} placeholder="Enter wallet ID" required />
+                  <input
+                    list="to-wallets-sched"
+                    value={form.to_wallet_id}
+                    onChange={(e) => setForm({ ...form, to_wallet_id: e.target.value })}
+                    placeholder="Type or select wallet"
+                    required
+                    className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  />
+                  <datalist id="to-wallets-sched">
+                    {wallets.map((w) => (
+                      <option key={w.id} value={w.id}>{w.public_key.slice(0, 10)}...</option>
+                    ))}
+                  </datalist>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">

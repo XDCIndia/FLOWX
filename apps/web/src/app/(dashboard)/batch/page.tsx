@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { api, type BatchResponse } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/lib/toast-context';
@@ -21,11 +21,24 @@ interface BatchItem {
 }
 
 export default function BatchPage() {
-  const { getStoredWalletIds } = useAuth();
+  
   const { toast } = useToast();
-  const walletIds = useMemo(() => getStoredWalletIds(), [getStoredWalletIds]);
+  
 
+  const [wallets, setWallets] = useState<{id: string; public_key: string}[]>([]);
   const [fromWalletId, setFromWalletId] = useState('');
+  useEffect(() => {
+    fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000') + '/v1/wallets', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('flowx_api_key') || ''}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const list = data.wallets || data || [];
+        setWallets(list.map((w: any) => ({ id: w.id, public_key: w.public_key })));
+      })
+      .catch(() => {});
+  }, []);
+
   const [items, setItems] = useState<BatchItem[]>([{ to_wallet_id: '', asset: 'TXDC', amount: '', reference: '' }]);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<BatchResponse | null>(null);
@@ -115,20 +128,43 @@ export default function BatchPage() {
           <form onSubmit={handleCreate} className="flex flex-col gap-5">
             <div className="flex flex-col gap-1.5 max-w-xs">
               <label className="text-sm font-medium">From Wallet</label>
-              <Input value={fromWalletId} onChange={(e) => setFromWalletId(e.target.value)} placeholder="Enter your wallet ID" required />
+              <div className="flex gap-2">
+                <input
+                  list="from-wallets-batch"
+                  value={fromWalletId}
+                  onChange={(e) => setFromWalletId(e.target.value)}
+                  placeholder="Type or select wallet"
+                  required
+                  className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                />
+                <datalist id="from-wallets-batch">
+                  {wallets.map((w) => (
+                    <option key={w.id} value={w.id}>{w.public_key.slice(0, 10)}...</option>
+                  ))}
+                </datalist>
+              </div>
             </div>
 
             <div className="flex flex-col gap-3">
               {items.map((it, idx) => (
                 <div key={idx} className="grid grid-cols-12 gap-2 items-end rounded-lg border border-border p-3">
                   <div className="col-span-5 flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">To Wallet ID</label>
-                    <Input
-                      value={it.to_wallet_id}
-                      onChange={(e) => updateItem(idx, 'to_wallet_id', e.target.value)}
-                      placeholder="Enter wallet ID or select below"
-                      required
-                    />
+                    <label className="text-xs font-medium text-muted-foreground">To Wallet</label>
+                    <div className="flex gap-2">
+                      <input
+                        list={"to-wallets-" + idx}
+                        value={it.to_wallet_id}
+                        onChange={(e) => updateItem(idx, 'to_wallet_id', e.target.value)}
+                        placeholder="Type or select"
+                        required
+                        className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                      />
+                      <datalist id={"to-wallets-" + idx}>
+                        {wallets.map((w) => (
+                          <option key={w.id} value={w.id}>{w.public_key.slice(0, 10)}...</option>
+                        ))}
+                      </datalist>
+                    </div>
                   </div>
                   <div className="col-span-2 flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground">Asset</label>

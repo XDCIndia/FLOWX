@@ -154,6 +154,24 @@ export default function FiatPage() {
               <Button type="submit" isLoading={depositLoading}>
                 Initiate Deposit
               </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={async () => {
+                  if (!deposit.wallet_id || !deposit.amount) {
+                    toast('Select wallet and enter amount', 'error');
+                    return;
+                  }
+                  try {
+                    const res = await api.faucet(deposit.wallet_id, 'USDC', parseFloat(deposit.amount) / 1500);
+                    toast(`Simulated! Added ${res.new_balance} USDC (1500 NGN = 1 USDC)`, 'success');
+                  } catch (err) {
+                    toast(err instanceof Error ? err.message : 'Simulate failed', 'error');
+                  }
+                }}
+              >
+                Simulate Deposit (Demo)
+              </Button>
             </form>
             {depositLink && (
               <div className="mt-4 rounded-lg border border-primary/20 bg-primary-subtle p-4">

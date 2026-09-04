@@ -23,6 +23,7 @@ func NewHandler(svc Service) *Handler {
 func (h *Handler) DepositRoutes() func(r chi.Router) {
 	return func(r chi.Router) {
 		r.Post("/fiat", h.handleDeposit)
+		r.Post("/fiat/simulate", h.handleSimulateDeposit)
 	}
 }
 
@@ -175,3 +176,46 @@ func (h *Handler) handleWebhook(w http.ResponseWriter, r *http.Request) {
 
 	api.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
+
+
+func (h *Handler) handleSimulateDeposit(w http.ResponseWriter, r *http.Request) {
+	walletID := chi.URLParam(r, "id")
+	if walletID == "" {
+		api.BadRequest(w, "wallet id is required")
+		return
+	}
+
+	var req struct {
+		Amount   string `json:"amount" validate:"required"`
+		Currency string `json:"currency" validate:"required"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		api.BadRequest(w, "invalid request body")
+		return
+	}
+
+	amount, err := decimal.NewFromString(req.Amount)
+	if err != nil || amount.LessThanOrEqual(decimal.Zero) {
+		api.BadRequest(w, "invalid amount")
+		return
+	}
+
+	// For demo: directly credit the wallet with equivalent crypto
+	// Using a fixed rate: 1 USDC = 1500 NGN (or 1 TXDC = 1500 NGN)
+	creditAsset := "USDC"
+	creditAmount := amount.Div(decimal.NewFromInt(1500))
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"wallet_id":   walletID,
+		"fiat_amount": req.Amount,
+		"fiat_currency": req.Currency,
+		"credit_amount": creditAmount.String(),
+		"credit_asset": creditAsset,
+		"rate": "1500",
+		"status": "simulated",
+		"message": "Demo mode: deposit simulated. In production, webhook confirms payment.",
+	})
+}
+

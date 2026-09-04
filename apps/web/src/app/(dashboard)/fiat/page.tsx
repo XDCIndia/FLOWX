@@ -152,7 +152,16 @@ export default function FiatPage() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">Currency</label>
-                  <Input value={deposit.currency} onChange={(e) => setDeposit({ ...deposit, currency: e.target.value })} required />
+                  <select value={deposit.currency} onChange={(e) => setDeposit({ ...deposit, currency: e.target.value })} className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+                    <option value="NGN">NGN - Nigerian Naira</option>
+                    <option value="USD">USD - US Dollar</option>
+                    <option value="EUR">EUR - Euro</option>
+                    <option value="GBP">GBP - British Pound</option>
+                    <option value="INR">INR - Indian Rupee</option>
+                    <option value="KES">KES - Kenyan Shilling</option>
+                    <option value="GHS">GHS - Ghanaian Cedi</option>
+                    <option value="ZAR">ZAR - South African Rand</option>
+                  </select>
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
@@ -226,7 +235,16 @@ export default function FiatPage() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">Currency</label>
-                  <Input value={withdraw.currency} onChange={(e) => setWithdraw({ ...withdraw, currency: e.target.value })} required />
+                  <select value={withdraw.currency} onChange={(e) => setWithdraw({ ...withdraw, currency: e.target.value })} className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+                    <option value="NGN">NGN - Nigerian Naira</option>
+                    <option value="USD">USD - US Dollar</option>
+                    <option value="EUR">EUR - Euro</option>
+                    <option value="GBP">GBP - British Pound</option>
+                    <option value="INR">INR - Indian Rupee</option>
+                    <option value="KES">KES - Kenyan Shilling</option>
+                    <option value="GHS">GHS - Ghanaian Cedi</option>
+                    <option value="ZAR">ZAR - South African Rand</option>
+                  </select>
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">

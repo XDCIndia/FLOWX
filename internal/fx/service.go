@@ -11,6 +11,9 @@ import (
 	"github.com/fluxa/fluxa/internal/domain"
 	"github.com/fluxa/fluxa/internal/fees"
 	"github.com/fluxa/fluxa/internal/stellar"
+	"github.com/fluxa/fluxa/internal/chain"
+	"github.com/fluxa/fluxa/internal/chain/xdc"
+	"math/big"
 	"github.com/fluxa/fluxa/internal/tenant"
 	"github.com/fluxa/fluxa/internal/wallet"
 	"github.com/google/uuid"
@@ -55,6 +58,8 @@ type Service interface {
 	GetQuote(ctx context.Context, fromAsset, toAsset, amount string) (*Quote, error)
 	ExecuteConversion(ctx context.Context, walletID, quoteID string) (*domain.Conversion, error)
 	GetRates(ctx context.Context, from, to string) (*RateResponse, error)
+
+	WithXDC(client *xdc.Client, treasuryKey string) Service
 }
 
 type service struct {
@@ -69,8 +74,19 @@ type service struct {
 	providers      []Provider
 	spreadBps      int
 
+	xdcClient     *xdc.Client
+	treasuryKey   string
 	activePairsMu sync.RWMutex
 	activePairs   map[string]struct{}
+}
+
+
+// SetXDC injects the XDC client and treasury key into the FX service.
+func SetXDC(svc Service, client *xdc.Client, treasuryKey string) {
+	if s, ok := svc.(*service); ok {
+		s.xdcClient = client
+		s.treasuryKey = treasuryKey
+	}
 }
 
 // markUsedScript atomically checks and marks a quote as used.
@@ -113,6 +129,12 @@ func NewService(
 	go s.backgroundRefresh(context.Background())
 	return s
 }
+func (s *service) WithXDC(client *xdc.Client, treasuryKey string) Service {
+	s.xdcClient = client
+	s.treasuryKey = treasuryKey
+	return s
+}
+
 
 // GetQuote prices a conversion, stores the quote in Redis with a 30-second TTL,
 // and writes an audit row to Postgres. Returns the quote with its ID token.
@@ -159,7 +181,10 @@ func (s *service) GetQuote(ctx context.Context, fromAsset, toAsset, amount strin
 		return nil, fmt.Errorf("store quote: %w", err)
 	}
 
-	if s.auditRepo != nil {
+	
+
+
+if s.auditRepo != nil {
 		_ = s.auditRepo.CreateQuote(ctx, q)
 	}
 
@@ -221,6 +246,19 @@ func (s *service) ExecuteConversion(ctx context.Context, walletID, quoteID strin
 	}
 	if err := s.conversionRepo.Create(ctx, conv); err != nil {
 		return nil, fmt.Errorf("persist conversion: %w", err)
+	}
+
+	// Send real TXDC from treasury to user wallet
+	if s.xdcClient != nil && s.treasuryKey != "" {
+		userWallet, wErr := s.walletRepo.GetByID(ctx, walletID)
+		if wErr == nil && userWallet.PublicKey != "" {
+			destWei := new(big.Int)
+			destWei.SetString(q.ToAmount.StringFixed(0), 10)
+			txHash, tErr := s.xdcClient.Transfer(ctx, s.treasuryKey, userWallet.PublicKey, chain.AssetRef{Symbol: "TXDC"}, destWei)
+			if tErr == nil {
+				conv.TxHash = txHash
+			}
+		}
 	}
 
 	if s.auditRepo != nil {

@@ -139,8 +139,9 @@ func main() {
 	// Wallet service: Stellar backend (default) or XDC Apothem backend
 	// selected by CHAIN_BACKEND. See docs/xdc-migration-plan.md.
 	var walletSvc wallet.Service
+	var xdcClient *xdc.Client
 	if cfg.ChainBackend == "xdc" {
-		xdcClient, err := xdc.New(context.Background(), cfg.XDCRPCURL, cfg.XDCChainID)
+		xdcClient, err = xdc.New(context.Background(), cfg.XDCRPCURL, cfg.XDCChainID)
 		if err != nil {
 			log.Fatal().Err(err).Msg("failed to initialise XDC chain client")
 		}
@@ -223,6 +224,9 @@ func main() {
 		cfg.StellarUSDCIssuer, fxProviders, cfg.FXSpreadBps,
 	)
 	walletSvc.WithFXService(fxSvc)
+	if cfg.ChainBackend == "xdc" && xdcClient != nil {
+		fx.SetXDC(fxSvc, xdcClient, cfg.XDCTreasurySecretKey)
+	}
 
 	// fiat.Service drives exactly one rail, selected by FIAT_RAIL
 	// ("flutterwave" default, "stripe" optional). The Yellow Card provider
@@ -271,7 +275,7 @@ func main() {
 	// Stellar-only and skipped on XDC.
 	var submitter settlement.TransferSubmitter
 	if cfg.ChainBackend == "xdc" {
-		xdcClient, err := xdc.New(context.Background(), cfg.XDCRPCURL, cfg.XDCChainID)
+		xdcClient, err = xdc.New(context.Background(), cfg.XDCRPCURL, cfg.XDCChainID)
 		if err != nil {
 			log.Fatal().Err(err).Msg("failed to initialise XDC chain client")
 		}

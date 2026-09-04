@@ -272,6 +272,14 @@ export default function PaymentsPage() {
                       <Button className="w-full">Open Stripe Checkout &rarr;</Button>
                     </a>
                   </div>
+                ) : executionResult.reference.startsWith('0x') ? (
+                  <div className="flex items-center gap-2 text-xs text-success bg-success/10 rounded-lg p-3">
+                    <CheckCircle className="h-4 w-4" />
+                    Payment completed on XDC blockchain!
+                    <a href={`https://testnet.xdcscan.com/tx/${executionResult.reference}`} target="_blank" rel="noopener noreferrer" className="underline">
+                      View on Explorer
+                    </a>
+                  </div>
                 ) : (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted rounded-lg p-3">
                     <Clock className="h-4 w-4" />

@@ -97,7 +97,19 @@ export default function WalletsPage() {
     try {
       const result = await api.faucet(walletId, 'USDC', 1000);
       toast(`Added 1000 USDC! New balance: ${result.new_balance} USDC`, 'success');
-      setWallets(prev => prev.map(w => w.id === walletId ? { ...w, balance: result.new_balance } : w));
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Faucet failed', 'error');
+    } finally {
+      setFauceting(null);
+    }
+  };
+
+  const handleFaucetTXDC = async (walletId: string) => {
+    setFauceting(walletId);
+    try {
+      const result = await api.faucet(walletId, 'TXDC', 10);
+      const txMsg = result.tx_hash ? ` TX: ${result.tx_hash.slice(0, 16)}...` : '';
+      toast(`Added 10 TXDC!${txMsg}`, 'success');
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Faucet failed', 'error');
     } finally {
@@ -244,7 +256,7 @@ export default function WalletsPage() {
                     {wallet.public_key.startsWith('0x') || wallet.public_key.toLowerCase().startsWith('xdc') ? 'View on BlocksScan' : 'View on Stellar Expert'}
                     <ExternalLink className="h-3.5 w-3.5" />
                   </a>
-                  <Button variant="ghost" size="sm" onClick={() => handleFaucet(wallet.id)} disabled={fauceting === wallet.id} className="text-blue-500 hover:text-blue-600"><Droplets className="h-3.5 w-3.5" />{fauceting === wallet.id ? "..." : "Get USDC"}</Button><Button variant="ghost" size="sm" onClick={() => handleDelete(wallet.id)} disabled={deleting === wallet.id} className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" />{deleting === wallet.id ? "..." : "Delete"}</Button><Button variant="ghost" size="sm" onClick={() => setTrustlineWallet(wallet.id)}>
+                  <Button variant="ghost" size="sm" onClick={() => handleFaucetTXDC(wallet.id)} disabled={fauceting === wallet.id} className="text-green-500 hover:text-green-600"><Droplets className="h-3.5 w-3.5" />{fauceting === wallet.id ? "..." : "Get TXDC"}</Button><Button variant="ghost" size="sm" onClick={() => handleFaucet(wallet.id)} disabled={fauceting === wallet.id} className="text-blue-500 hover:text-blue-600"><Droplets className="h-3.5 w-3.5" />{fauceting === wallet.id ? "..." : "Get USDC"}</Button><Button variant="ghost" size="sm" onClick={() => handleDelete(wallet.id)} disabled={deleting === wallet.id} className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" />{deleting === wallet.id ? "..." : "Delete"}</Button><Button variant="ghost" size="sm" onClick={() => setTrustlineWallet(wallet.id)}>
                     <Link2 className="h-3.5 w-3.5" />
                     Trustline
                   </Button>

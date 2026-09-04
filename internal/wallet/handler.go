@@ -325,7 +325,7 @@ func (h *Handler) faucet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	amt := decimal.NewFromFloat(req.Amount)
-	newBalance, err := h.svc.Faucet(r.Context(), walletID, req.AssetCode, amt)
+	result, err := h.svc.Faucet(r.Context(), walletID, req.AssetCode, amt)
 	if err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
 		return
@@ -333,11 +333,15 @@ func (h *Handler) faucet(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	resp := map[string]interface{}{
 		"wallet_id":   walletID,
 		"asset_code":  req.AssetCode,
 		"added":       req.Amount,
-		"new_balance": newBalance,
-	})
+		"new_balance": result.Balance,
+	}
+	if result.TxHash != "" {
+		resp["tx_hash"] = result.TxHash
+	}
+	json.NewEncoder(w).Encode(resp)
 }
 

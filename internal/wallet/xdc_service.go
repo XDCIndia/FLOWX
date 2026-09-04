@@ -331,14 +331,30 @@ func weiToTXDC(wei *big.Int) decimal.Decimal {
 	return decimal.NewFromBigInt(wei, 0).Div(decimal.NewFromInt(1e18))
 }
 
-func (s *XDCService) Faucet(ctx context.Context, walletID, assetCode string, amount decimal.Decimal) (string, error) {
+func (s *XDCService) Faucet(ctx context.Context, walletID, assetCode string, amount decimal.Decimal) (*FaucetResult, error) {
 	// Verify wallet exists
 	w, err := s.repo.GetByID(ctx, walletID)
 	if err != nil || w == nil {
-		return "", fmt.Errorf("wallet not found")
+		return nil, fmt.Errorf("wallet not found")
 	}
 
-	// Get current balance
+	// For TXDC: send real on-chain tokens from treasury
+	if assetCode == "TXDC" || assetCode == "XDC" {
+		if s.treasurySK == "" {
+			return nil, fmt.Errorf("treasury key not configured")
+		}
+		wei := txdcToWei(amount)
+		hash, err := s.chain.Transfer(ctx, s.treasurySK, w.PublicKey, chain.NativeTXDC, wei)
+		if err != nil {
+			return nil, fmt.Errorf("treasury transfer failed: %w", err)
+		}
+		log.Info().Str("wallet_id", walletID).Str("tx_hash", hash).Msg("faucet: sent real TXDC from treasury")
+		// Return the on-chain balance
+		onChainWei, _ := s.chain.Balance(ctx, w.PublicKey, chain.NativeTXDC)
+		return &FaucetResult{Balance: weiToTXDC(onChainWei).String(), TxHash: hash}, nil
+	}
+
+	// For other assets (USDC, EURC, etc.): add to DB balance
 	balances, err := s.repo.GetBalances(ctx, walletID)
 	if err != nil {
 		balances = nil
@@ -352,14 +368,11 @@ func (s *XDCService) Faucet(ctx context.Context, walletID, assetCode string, amo
 		}
 	}
 
-	// Add the faucet amount
 	newBalance := currentBalance.Add(amount)
-
-	// Upsert the new balance
 	if err := s.repo.UpsertBalance(ctx, walletID, assetCode, "", newBalance); err != nil {
-		return "", fmt.Errorf("failed to update balance: %w", err)
+		return nil, fmt.Errorf("failed to update balance: %w", err)
 	}
 
-	return newBalance.String(), nil
+	return &FaucetResult{Balance: newBalance.String()}, nil
 }
 

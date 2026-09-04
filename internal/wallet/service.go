@@ -25,6 +25,12 @@ type FXRateGetter interface {
 	GetRates(ctx context.Context, from, to string) (*domain.RateResponse, error)
 }
 
+// FaucetResult holds the outcome of a faucet request.
+type FaucetResult struct {
+	Balance string `json:"balance"`
+	TxHash  string `json:"tx_hash,omitempty"`
+}
+
 type Balance struct {
 	AssetCode     string `json:"asset_code"`
 	Issuer        string `json:"issuer"`
@@ -53,7 +59,7 @@ type Service interface {
 	WithIssuers(usdcIssuer, eurcIssuer string) Service
 	Delete(ctx context.Context, walletID string) error
 	List(ctx context.Context) ([]*domain.Wallet, error)
-	Faucet(ctx context.Context, walletID, assetCode string, amount decimal.Decimal) (string, error)
+	Faucet(ctx context.Context, walletID, assetCode string, amount decimal.Decimal) (*FaucetResult, error)
 }
 
 type service struct {
@@ -390,11 +396,11 @@ func (s *service) List(ctx context.Context) ([]*domain.Wallet, error) {
 }
 
 // Faucet adds test tokens to a wallet balance (for demo/testing purposes).
-func (s *service) Faucet(ctx context.Context, walletID, assetCode string, amount decimal.Decimal) (string, error) {
+func (s *service) Faucet(ctx context.Context, walletID, assetCode string, amount decimal.Decimal) (*FaucetResult, error) {
 	// Verify wallet exists
 	w, err := s.repo.GetByID(ctx, walletID)
 	if err != nil || w == nil {
-		return "", fmt.Errorf("wallet not found")
+		return nil, fmt.Errorf("wallet not found")
 	}
 
 	// Get current balance
@@ -416,9 +422,9 @@ func (s *service) Faucet(ctx context.Context, walletID, assetCode string, amount
 
 	// Upsert the new balance (empty issuer for test tokens)
 	if err := s.repo.UpsertBalance(ctx, walletID, assetCode, "", newBalance); err != nil {
-		return "", fmt.Errorf("failed to update balance: %w", err)
+		return nil, fmt.Errorf("failed to update balance: %w", err)
 	}
 
-	return newBalance.String(), nil
+	return &FaucetResult{Balance: newBalance.String()}, nil
 }
 

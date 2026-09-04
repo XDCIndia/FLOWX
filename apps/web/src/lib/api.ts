@@ -450,7 +450,7 @@ class FlowXAPI {
     return request(`/v1/wallets/${walletId}`, { method: "DELETE" });
   }
 
-  async faucet(walletId: string, assetCode = 'USDC', amount = 1000): Promise<{ wallet_id: string; asset_code: string; added: number; new_balance: string }> {
+  async faucet(walletId: string, assetCode = 'USDC', amount = 1000): Promise<{ wallet_id: string; asset_code: string; added: number; new_balance: string; tx_hash?: string }> {
     return request(`/v1/wallets/${walletId}/faucet`, {
       method: 'POST',
       body: JSON.stringify({ asset_code: assetCode, amount })

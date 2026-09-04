@@ -496,7 +496,7 @@ func decodeI128Field(v xdr.ScVal, field string) (string, error) {
 	return decimal.NewFromBigInt(i, -7).String(), nil
 }
 
-func (a *ContractWalletAdapter) Faucet(ctx context.Context, walletID, assetCode string, amount decimal.Decimal) (string, error) {
-	return "", fmt.Errorf("faucet not supported for contract wallets")
+func (a *ContractWalletAdapter) Faucet(ctx context.Context, walletID, assetCode string, amount decimal.Decimal) (*FaucetResult, error) {
+	return nil, fmt.Errorf("faucet not supported for contract wallets")
 }
 

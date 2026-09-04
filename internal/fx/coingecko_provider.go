@@ -43,10 +43,16 @@ var coinGeckoIDs = map[string]string{
 var coinGeckoFiat = map[string]bool{
 	"USD": true,
 	"NGN": true,
+	"INR": true,
+	"EUR": true,
+	"GBP": true,
+	"KES": true,
+	"GHS": true,
+	"ZAR": true,
 }
 
 // coinGeckoAssets is the full pair universe advertised by SupportedPairs.
-var coinGeckoAssets = []string{"USDC", "XDC", "TXDC", "XLM", "USD", "NGN"}
+var coinGeckoAssets = []string{"USDC", "XDC", "TXDC", "XLM", "USD", "NGN", "INR", "EUR", "GBP", "KES", "GHS", "ZAR"}
 
 const coinGeckoPriceTTL = 30 * time.Second
 
@@ -98,13 +104,31 @@ func (p *CoinGeckoProvider) GetRate(ctx context.Context, from, to, _ string) (de
 		}
 		return fp.Div(tp), nil
 	}
-	// crypto -> fiat: direct vs_currencies price.
+	// crypto -> fiat: try direct vs_currencies price, else fall back via USD.
 	if fromCrypto && toFiat {
 		fp, ok := prices[fromID][strings.ToLower(to)]
-		if !ok || fp.IsZero() {
+		if ok && !fp.IsZero() {
+			return fp, nil
+		}
+		// Fallback: get USD price for crypto, then cross with fiat/USD rate
+		cryptoUSD, ok1 := prices[fromID]["usd"]
+		if !ok1 || cryptoUSD.IsZero() {
+			return decimal.Zero, fmt.Errorf("coingecko: missing usd price for %s", from)
+		}
+		fiatUSD, ok2 := prices["usd-coin"][strings.ToLower(to)]
+		if !ok2 || fiatUSD.IsZero() {
+			// Use direct USD conversion if fiat/USD not available (e.g., INR)
+			// CoinGecko fiat prices are vs_currencies, so INR/USD ~ 83
+			// We need fiat_per_usd, so use a hardcoded fallback or try other cryptos
+			for _, anchorID := range []string{"usd-coin", "xdce-crowd-sale", "stellar"} {
+				p, ok3 := prices[anchorID][strings.ToLower(to)]
+				if ok3 && !p.IsZero() {
+					return cryptoUSD.Mul(p), nil
+				}
+			}
 			return decimal.Zero, fmt.Errorf("coingecko: missing %s price for %s", to, from)
 		}
-		return fp, nil
+		return cryptoUSD.Mul(fiatUSD), nil
 	}
 	// fiat -> crypto: inverse of the crypto's fiat price.
 	if fromFiat && toCrypto {
@@ -126,7 +150,7 @@ func (p *CoinGeckoProvider) GetRate(ctx context.Context, from, to, _ string) (de
 	return decimal.Zero, fmt.Errorf("coingecko: cannot price %s-%s", from, to)
 }
 
-// priceMatrix fetches (and briefly memoizes) the USD+NGN spot matrix for
+// priceMatrix fetches (and briefly memoizes) the USD+NGN+INR+EUR+GBP+KES+GHS+ZAR spot matrix for
 // every known crypto id.
 func (p *CoinGeckoProvider) priceMatrix(ctx context.Context) (map[string]map[string]decimal.Decimal, error) {
 	p.mu.Lock()
@@ -144,7 +168,7 @@ func (p *CoinGeckoProvider) priceMatrix(ctx context.Context) (map[string]map[str
 			ids = append(ids, id)
 		}
 	}
-	url := fmt.Sprintf("%s/simple/price?ids=%s&vs_currencies=usd,ngn", p.baseURL, strings.Join(ids, ","))
+	url := fmt.Sprintf("%s/simple/price?ids=%s&vs_currencies=usd,ngn,inr,eur,gbp,kes,ghs,zar", p.baseURL, strings.Join(ids, ","))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("build coingecko request: %w", err)

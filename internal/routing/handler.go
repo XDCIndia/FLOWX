@@ -21,6 +21,7 @@ func NewHandler() *Handler {
 	evaluator := NewEvaluator(
 		NewOnChainXDCRoute(),
 		NewFiatNGNRoute(),
+		NewStripeBankRoute("sk_test_placeholder"),
 	)
 	return &Handler{
 		evaluator: evaluator,

@@ -18,7 +18,7 @@ export default function ConversionsPage() {
 
   useEffect(() => {
     fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000') + '/v1/wallets', {
-      headers: { Authorization: `Bearer ${localStorage.getItem('apiKey') || ''}` },
+      headers: { Authorization: `Bearer ${localStorage.getItem('flowx_api_key') || ''}` },
     })
       .then((r) => r.json())
       .then((data) => {

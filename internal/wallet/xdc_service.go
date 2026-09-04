@@ -284,6 +284,10 @@ func (s *XDCService) WithFXService(_ FXRateGetter) Service { return s }
 // WithIssuers keeps interface parity; issuer resolution is Stellar-specific.
 func (s *XDCService) WithIssuers(_, _ string) Service { return s }
 
+func (s *XDCService) List(ctx context.Context) ([]*domain.Wallet, error) {
+	return s.repo.List(ctx, 100, 0)
+}
+
 func (s *XDCService) Delete(ctx context.Context, walletID string) error {
 	return s.repo.Delete(ctx, walletID)
 }

@@ -118,6 +118,10 @@ func (a *ContractWalletAdapter) WithIssuers(usdcIssuer, eurcIssuer string) Servi
 	return a
 }
 
+func (a *ContractWalletAdapter) List(ctx context.Context) ([]*domain.Wallet, error) {
+	return a.repo.List(ctx, 100, 0)
+}
+
 func (a *ContractWalletAdapter) Delete(ctx context.Context, walletID string) error {
 	return a.repo.Delete(ctx, walletID)
 }

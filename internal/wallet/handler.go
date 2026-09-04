@@ -51,6 +51,7 @@ func (h *Handler) Routes() func(r chi.Router) {
 			post = r.With(h.idem).Post
 		}
 		post("/", h.createWallet)
+		r.Get("/", h.listWallets)
 		r.Get("/{id}", h.getWallet)
 		r.Get("/{id}/balances", h.getBalances)
 		r.Delete("/{id}", h.deleteWallet)
@@ -274,6 +275,24 @@ func (h *Handler) addTrustline(w http.ResponseWriter, r *http.Request) {
 		"tx_hash":   txHash,
 	})
 }
+func (h *Handler) listWallets(w http.ResponseWriter, r *http.Request) {
+	wallets, err := h.svc.List(r.Context())
+	if err != nil {
+		http.Error(w, "error", http.StatusInternalServerError)
+		return
+	}
+	type walletResp struct {
+		ID        string `json:"id"`
+		PublicKey string `json:"public_key"`
+	}
+	resp := make([]walletResp, 0, len(wallets))
+	for _, wl := range wallets {
+		resp = append(resp, walletResp{ID: wl.ID, PublicKey: wl.PublicKey})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"wallets": resp})
+}
+
 func (h *Handler) deleteWallet(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if err := h.svc.Delete(r.Context(), id); err != nil {

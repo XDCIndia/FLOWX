@@ -52,6 +52,7 @@ type Service interface {
 	WithFXService(fxSvc FXRateGetter) Service
 	WithIssuers(usdcIssuer, eurcIssuer string) Service
 	Delete(ctx context.Context, walletID string) error
+	List(ctx context.Context) ([]*domain.Wallet, error)
 }
 
 type service struct {
@@ -382,4 +383,7 @@ func (s *service) AddTrustline(ctx context.Context, walletID, assetCode, issuer,
 
 func (s *service) Delete(ctx context.Context, walletID string) error {
 	return s.repo.Delete(ctx, walletID)
+}
+func (s *service) List(ctx context.Context) ([]*domain.Wallet, error) {
+	return s.repo.List(ctx, 100, 0)
 }

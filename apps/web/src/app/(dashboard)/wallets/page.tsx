@@ -244,7 +244,7 @@ export default function WalletsPage() {
                   </Button>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
                   <a
                     href={wallet.public_key.startsWith('0x') || wallet.public_key.toLowerCase().startsWith('xdc')
                       ? `https://testnet.xdcscan.com/address/${toDisplayAddress(wallet.public_key)}`

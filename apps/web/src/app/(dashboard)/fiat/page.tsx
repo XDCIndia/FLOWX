@@ -97,7 +97,7 @@ export default function FiatPage() {
         account_number: withdraw.account_number,
       });
       setWithdrawRef(res.reference);
-      toast(`Withdrawal ${res.status} — ${res.reference}`, 'success');
+      toast(`Withdrawal ${res.status === 'completed' ? 'completed' : 'submitted'} — ${res.reference}`, 'success');
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Withdrawal failed', 'error');
     } finally {
@@ -270,7 +270,7 @@ export default function FiatPage() {
             {withdrawRef && (
               <div className="mt-4 rounded-lg border border-success/20 bg-success-subtle p-4">
                 <p className="text-sm font-medium text-success">Reference: {withdrawRef}</p>
-                <p className="text-xs text-muted-foreground">On-chain transfer completed; provider payout pending.</p>
+                <p className="text-xs text-muted-foreground">Withdrawal submitted to Flutterwave for processing.</p>
               </div>
             )}
           </CardContent>

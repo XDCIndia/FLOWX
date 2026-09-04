@@ -16,6 +16,7 @@ import {
   Calendar,
   Banknote,
   Route,
+  Shield,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ const navItems = [
   { name: 'API Keys', href: '/api-keys', icon: KeyRound },
   { name: 'Webhooks', href: '/webhooks', icon: Webhook },
   { name: 'Usage', href: '/usage', icon: BarChart3 },
+  { name: 'Risk', href: '/risk', icon: Shield },
   { name: 'Team', href: '/team', icon: Users },
 ];
 

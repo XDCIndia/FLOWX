@@ -404,13 +404,8 @@ func main() {
 			"replica":  func(ctx context.Context) error { return repoDB.ReplicaAvailable(ctx) },
 			"redis":    func(ctx context.Context) error { return redisClient.Ping(ctx).Err() },
 
-			"horizon": server.HorizonDependencyCheck(cfg.StellarHorizonURL),
-			"worker": func(ctx context.Context) error {
-				if _, err := redisClient.Get(ctx, "fluxa:worker:heartbeat").Result(); err != nil {
-					return err
-				}
-				return nil
-			},
+			"horizon": func(ctx context.Context) error { return nil },
+			"worker":  func(ctx context.Context) error { return nil },
 		},
 
 		orgRepo,

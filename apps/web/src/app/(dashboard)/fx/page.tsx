@@ -73,7 +73,8 @@ export default function FXPage() {
     setConvertLoading(true);
     try {
       const res = await api.convert({ wallet_id: convertWalletId, quote_id: quote.id });
-      toast(`Converted via tx ${res.tx_hash?.slice(0, 8) || res.id.slice(0, 8)}`, 'success');
+      toast('Conversion successful!', 'success');
+      setConversionResult(res);
       setQuote(null);
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Conversion failed', 'error');

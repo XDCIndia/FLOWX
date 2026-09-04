@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   api,
   type FeeSchedule,
   type FeeCollectedSummary,
 } from '@/lib/api';
-import { useAuth } from '@/lib/auth-context';
+
 import { useToast } from '@/lib/toast-context';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BarChart3, ArrowRightLeft } from 'lucide-react';
 
 export default function UsagePage() {
-  const { getStoredWalletIds } = useAuth();
+
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [fees, setFees] = useState<FeeSchedule | null>(null);
@@ -22,7 +22,19 @@ export default function UsagePage() {
   const [totalTransactions, setTotalTransactions] = useState(0);
   const [totalVolume, setTotalVolume] = useState(0);
 
-  const walletIds = useMemo(() => getStoredWalletIds(), [getStoredWalletIds]);
+  const [walletIds, setWalletIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000') + '/v1/wallets', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('flowx_api_key') || ''}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const list = data.wallets || data || [];
+        setWalletIds(list.map((w: any) => w.id));
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);

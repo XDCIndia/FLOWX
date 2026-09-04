@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	quoteTTL        = 30 * time.Second
+	quoteTTL        = 5 * time.Minute
 	quoteKeyPrefix  = "fx:quote:"
 	refreshInterval = 30 * time.Second
 )

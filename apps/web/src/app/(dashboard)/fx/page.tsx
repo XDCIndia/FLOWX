@@ -39,6 +39,7 @@ export default function FXPage() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [convertWalletId, setConvertWalletId] = useState('');
   const [convertLoading, setConvertLoading] = useState(false);
+  const [conversionResult, setConversionResult] = useState<any>(null);
 
   const handleGetRate = async () => {
     setRateLoading(true);
@@ -202,6 +203,28 @@ export default function FXPage() {
           </CardContent>
         </Card>
       </div>
+
+      {conversionResult && (
+        <Card className="w-full max-w-xl">
+          <CardHeader>
+            <CardTitle className="text-lg">Conversion Complete</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><span className="text-muted-foreground">Status: </span><span className="font-medium text-green-600">Success</span></div>
+              <div><span className="text-muted-foreground">ID: </span><span className="font-mono text-xs">{conversionResult.id}</span></div>
+              <div><span className="text-muted-foreground">Sent: </span><span className="font-medium">{conversionResult.source_amount} {conversionResult.source_asset}</span></div>
+              <div><span className="text-muted-foreground">Received: </span><span className="font-medium">{conversionResult.dest_amount} {conversionResult.dest_asset}</span></div>
+              <div><span className="text-muted-foreground">Rate: </span><span className="font-medium">{conversionResult.rate}</span></div>
+              <div><span className="text-muted-foreground">Fee: </span><span className="font-medium">{conversionResult.fee_amount}</span></div>
+            </div>
+            {conversionResult.tx_hash && (
+              <div className="text-sm"><span className="text-muted-foreground">Tx Hash: </span><span className="font-mono text-xs break-all">{conversionResult.tx_hash}</span></div>
+            )}
+            <Button variant="secondary" size="sm" onClick={() => setConversionResult(null)}>Dismiss</Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

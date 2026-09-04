@@ -204,8 +204,8 @@ export default function PaymentsPage() {
           <span>Found <strong>{quote.total_routes}</strong> route(s) for <strong>{quote.amount} {quote.source_asset}</strong> → <strong>{quote.dest_asset}</strong> <Badge className="ml-1">{quote.ranking_mode}</Badge></span>
         </div>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {quote.routes.map((route) => (
-            <Card key={route.route_id} className={`relative ${route.recommended ? 'border-green-500 border-2' : ''}`}>
+          {quote.routes.map((route, idx) => (
+            <Card key={route.route_id + "-" + idx} className={`relative ${route.recommended ? 'border-green-500 border-2' : ''}`}>
               {route.recommended && (<div className="absolute -top-3 right-4"><Badge variant="success" className="flex items-center gap-1"><Trophy className="h-3 w-3" /> Recommended</Badge></div>)}
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">

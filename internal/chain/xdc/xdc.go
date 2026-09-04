@@ -26,7 +26,7 @@ const (
 	// dev/spike work (see migration plan §9).
 	DefaultRPC = "https://rpc.apothem.network"
 	// ExplorerBase for human-readable proof links.
-	ExplorerBase = "https://apothem.blocksscan.io"
+	ExplorerBase = "https://testnet.xdcscan.com"
 )
 
 // Client is an XDC chain client satisfying chain.ChainClient.

@@ -221,7 +221,7 @@ export default function WalletsPage() {
                 <div className="flex items-center gap-3">
                   <a
                     href={wallet.public_key.startsWith('0x') || wallet.public_key.toLowerCase().startsWith('xdc')
-                      ? `https://apothem.blocksscan.io/address/${toDisplayAddress(wallet.public_key)}`
+                      ? `https://testnet.xdcscan.com/address/${toDisplayAddress(wallet.public_key)}`
                       : `https://stellar.expert/explorer/public/account/${wallet.public_key}`}
                     target="_blank"
                     rel="noreferrer"

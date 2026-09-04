@@ -283,7 +283,7 @@ export default function TransfersPage() {
                     The transfer will appear here once confirmed on the XDC network.
                   </p>
                   <a
-                    href={`https://apothem.blocksscan.io/address/${toDisplayAddress(wallets.get(receiveWallet)!.public_key)}`}
+                    href={`https://testnet.xdcscan.com/address/${toDisplayAddress(wallets.get(receiveWallet)!.public_key)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary-hover hover:underline"
@@ -471,7 +471,7 @@ export default function TransfersPage() {
                   <TableCell>
                     {tr.tx_hash ? (
                       <a
-                        href={`https://apothem.blocksscan.io/tx/${tr.tx_hash.replace(/^0x/, '')}`}
+                        href={`https://testnet.xdcscan.com/tx/${tr.tx_hash.replace(/^0x/, '')}`}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary-hover hover:underline"

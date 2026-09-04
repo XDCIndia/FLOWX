@@ -56,6 +56,7 @@ func (m *mockWalletRepo) GetBalances(_ context.Context, _ string) ([]domain.Bala
 	return nil, nil
 }
 func (m *mockWalletRepo) UpdateSyncCursor(_ context.Context, _, _ string) error { return nil }
+func (m *mockWalletRepo) Delete(_ context.Context, _ string) error          { return nil }
 
 type mockConvRepo struct {
 	conversions map[string]*domain.Conversion

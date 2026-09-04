@@ -249,38 +249,42 @@ func (s *service) GetRates(ctx context.Context, from, to string) (*RateResponse,
 
 func (s *service) fetchRate(ctx context.Context, from, to string) (*RateResponse, error) {
 	pairKey := from + "-" + to
-	var selected Provider
+	var lastErr error
 	for _, p := range s.providers {
+		supports := false
 		for _, pair := range p.SupportedPairs() {
 			if pair == pairKey {
-				selected = p
+				supports = true
 				break
 			}
 		}
-		if selected != nil {
-			break
+		if !supports {
+			continue
 		}
-	}
-	if selected == nil {
-		return nil, fmt.Errorf("%w: no provider for pair %s", domain.ErrUnsupportedPair, pairKey)
-	}
+		midRate, err := p.GetRate(ctx, from, to, "1")
+		if err != nil {
+			// Live providers can be down or rate-limited — fall through to
+			// the next provider that supports this pair (e.g. static rates).
+			lastErr = err
+			continue
+		}
 
-	midRate, err := selected.GetRate(ctx, from, to, "1")
-	if err != nil {
-		return nil, err
+		spreadFactor := decimal.NewFromInt(int64(s.spreadBps)).Div(decimal.NewFromInt(10000))
+		finalRate := midRate.Mul(decimal.NewFromInt(1).Add(spreadFactor))
+
+		return &RateResponse{
+			Rate:          finalRate,
+			MidMarketRate: midRate,
+			SpreadBps:     s.spreadBps,
+			Provider:      fmt.Sprintf("%T", p),
+			CachedAt:      time.Now().UTC(),
+			Stale:         false,
+		}, nil
 	}
-
-	spreadFactor := decimal.NewFromInt(int64(s.spreadBps)).Div(decimal.NewFromInt(10000))
-	finalRate := midRate.Mul(decimal.NewFromInt(1).Add(spreadFactor))
-
-	return &RateResponse{
-		Rate:          finalRate,
-		MidMarketRate: midRate,
-		SpreadBps:     s.spreadBps,
-		Provider:      fmt.Sprintf("%T", selected),
-		CachedAt:      time.Now().UTC(),
-		Stale:         false,
-	}, nil
+	if lastErr != nil {
+		return nil, fmt.Errorf("pair %s: %w", pairKey, lastErr)
+	}
+	return nil, fmt.Errorf("%w: no provider for pair %s", domain.ErrUnsupportedPair, pairKey)
 }
 
 func (s *service) registerActivePair(pair string) {

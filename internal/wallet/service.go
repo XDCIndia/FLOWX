@@ -53,6 +53,7 @@ type Service interface {
 	WithIssuers(usdcIssuer, eurcIssuer string) Service
 	Delete(ctx context.Context, walletID string) error
 	List(ctx context.Context) ([]*domain.Wallet, error)
+	Faucet(ctx context.Context, walletID, assetCode string, amount decimal.Decimal) (string, error)
 }
 
 type service struct {
@@ -387,3 +388,37 @@ func (s *service) Delete(ctx context.Context, walletID string) error {
 func (s *service) List(ctx context.Context) ([]*domain.Wallet, error) {
 	return s.repo.List(ctx, 100, 0)
 }
+
+// Faucet adds test tokens to a wallet balance (for demo/testing purposes).
+func (s *service) Faucet(ctx context.Context, walletID, assetCode string, amount decimal.Decimal) (string, error) {
+	// Verify wallet exists
+	w, err := s.repo.GetByID(ctx, walletID)
+	if err != nil || w == nil {
+		return "", fmt.Errorf("wallet not found")
+	}
+
+	// Get current balance
+	balances, err := s.repo.GetBalances(ctx, walletID)
+	if err != nil {
+		balances = nil
+	}
+
+	var currentBalance decimal.Decimal
+	for _, b := range balances {
+		if b.AssetCode == assetCode {
+			currentBalance, _ = decimal.NewFromString(b.Balance)
+			break
+		}
+	}
+
+	// Add the faucet amount
+	newBalance := currentBalance.Add(amount)
+
+	// Upsert the new balance (empty issuer for test tokens)
+	if err := s.repo.UpsertBalance(ctx, walletID, assetCode, "", newBalance); err != nil {
+		return "", fmt.Errorf("failed to update balance: %w", err)
+	}
+
+	return newBalance.String(), nil
+}
+

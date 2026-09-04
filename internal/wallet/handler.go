@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/fluxa/fluxa/internal/api"
 	"github.com/go-chi/chi/v5"
 )
@@ -55,6 +57,7 @@ func (h *Handler) Routes() func(r chi.Router) {
 		r.Get("/{id}", h.getWallet)
 		r.Get("/{id}/balances", h.getBalances)
 		r.Delete("/{id}", h.deleteWallet)
+		r.Post("/{id}/faucet", h.faucet)
 		post("/{id}/trustlines", h.addTrustline)
 
 		if h.contractSvc != nil {
@@ -301,3 +304,40 @@ func (h *Handler) deleteWallet(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (h *Handler) faucet(w http.ResponseWriter, r *http.Request) {
+	walletID := chi.URLParam(r, "id")
+
+	var req struct {
+		AssetCode string  `json:"asset_code"`
+		Amount    float64 `json:"amount"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	if req.AssetCode == "" {
+		req.AssetCode = "USDC"
+	}
+	if req.Amount <= 0 {
+		req.Amount = 1000
+	}
+
+	amt := decimal.NewFromFloat(req.Amount)
+	newBalance, err := h.svc.Faucet(r.Context(), walletID, req.AssetCode, amt)
+	if err != nil {
+		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"wallet_id":   walletID,
+		"asset_code":  req.AssetCode,
+		"added":       req.Amount,
+		"new_balance": newBalance,
+	})
+}
+

@@ -154,15 +154,37 @@ func (s *XDCService) GetBalances(ctx context.Context, walletID string, _ ...stri
 	if err != nil {
 		return nil, err
 	}
+
+	// Fetch on-chain TXDC balance
+	balances := []Balance{}
 	wei, err := s.chain.Balance(ctx, w.PublicKey, chain.NativeTXDC)
-	if err != nil {
-		return nil, fmt.Errorf("xdc balance: %w", err)
+	if err == nil {
+		amt := weiToTXDC(wei)
+		if err := s.repo.UpsertBalance(ctx, walletID, chain.NativeTXDC.Symbol, "", amt); err != nil {
+			log.Debug().Err(err).Str("wallet_id", walletID).Msg("xdc: cache balance upsert failed")
+		}
+		balances = append(balances, Balance{AssetCode: chain.NativeTXDC.Symbol, Balance: amt.String()})
 	}
-	amt := weiToTXDC(wei)
-	if err := s.repo.UpsertBalance(ctx, walletID, chain.NativeTXDC.Symbol, "", amt); err != nil {
-		log.Debug().Err(err).Str("wallet_id", walletID).Msg("xdc: cache balance upsert failed")
+
+	// Also include DB-only balances (faucet test tokens like USDC)
+	dbBalances, err := s.repo.GetBalances(ctx, walletID)
+	if err == nil {
+		for _, db := range dbBalances {
+			// Skip if already added from on-chain
+			found := false
+			for _, b := range balances {
+				if b.AssetCode == db.AssetCode {
+					found = true
+					break
+				}
+			}
+			if !found {
+				balances = append(balances, Balance{AssetCode: db.AssetCode, Balance: db.Balance})
+			}
+		}
 	}
-	return []Balance{{AssetCode: chain.NativeTXDC.Symbol, Balance: amt.String()}}, nil
+
+	return balances, nil
 }
 
 // AddTrustline is Stellar-specific (trustlines do not exist on EVM chains).
@@ -308,3 +330,36 @@ func txdcToWei(d decimal.Decimal) *big.Int {
 func weiToTXDC(wei *big.Int) decimal.Decimal {
 	return decimal.NewFromBigInt(wei, 0).Div(decimal.NewFromInt(1e18))
 }
+
+func (s *XDCService) Faucet(ctx context.Context, walletID, assetCode string, amount decimal.Decimal) (string, error) {
+	// Verify wallet exists
+	w, err := s.repo.GetByID(ctx, walletID)
+	if err != nil || w == nil {
+		return "", fmt.Errorf("wallet not found")
+	}
+
+	// Get current balance
+	balances, err := s.repo.GetBalances(ctx, walletID)
+	if err != nil {
+		balances = nil
+	}
+
+	var currentBalance decimal.Decimal
+	for _, b := range balances {
+		if b.AssetCode == assetCode {
+			currentBalance, _ = decimal.NewFromString(b.Balance)
+			break
+		}
+	}
+
+	// Add the faucet amount
+	newBalance := currentBalance.Add(amount)
+
+	// Upsert the new balance
+	if err := s.repo.UpsertBalance(ctx, walletID, assetCode, "", newBalance); err != nil {
+		return "", fmt.Errorf("failed to update balance: %w", err)
+	}
+
+	return newBalance.String(), nil
+}
+

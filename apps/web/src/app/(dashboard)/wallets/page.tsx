@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Wallet, Copy, ExternalLink, Plus, Link2, Trash2 } from 'lucide-react';
+import { Wallet, Copy, ExternalLink, Plus, Link2, Trash2, Droplets } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 
@@ -22,6 +22,7 @@ export default function WalletsPage() {
   const [creating, setCreating] = useState(false);
   const [trustlineWallet, setTrustlineWallet] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [fauceting, setFauceting] = useState<string | null>(null);
   const [trustlineForm, setTrustlineForm] = useState({ asset: 'USDC', issuer: '', limit: '' });
   const [trustlineLoading, setTrustlineLoading] = useState(false);
 
@@ -89,6 +90,19 @@ export default function WalletsPage() {
   } finally {
     setDeleting(null);
   }
+  };
+
+  const handleFaucet = async (walletId: string) => {
+    setFauceting(walletId);
+    try {
+      const result = await api.faucet(walletId, 'USDC', 1000);
+      toast(`Added 1000 USDC! New balance: ${result.new_balance} USDC`, 'success');
+      setWallets(prev => prev.map(w => w.id === walletId ? { ...w, balance: result.new_balance } : w));
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Faucet failed', 'error');
+    } finally {
+      setFauceting(null);
+    }
   };
 
   const handleCreateWallet = async () => {
@@ -230,7 +244,7 @@ export default function WalletsPage() {
                     {wallet.public_key.startsWith('0x') || wallet.public_key.toLowerCase().startsWith('xdc') ? 'View on BlocksScan' : 'View on Stellar Expert'}
                     <ExternalLink className="h-3.5 w-3.5" />
                   </a>
-                  <Button variant="ghost" size="sm" onClick={() => handleDelete(wallet.id)} disabled={deleting === wallet.id} className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" />{deleting === wallet.id ? "..." : "Delete"}</Button><Button variant="ghost" size="sm" onClick={() => setTrustlineWallet(wallet.id)}>
+                  <Button variant="ghost" size="sm" onClick={() => handleFaucet(wallet.id)} disabled={fauceting === wallet.id} className="text-blue-500 hover:text-blue-600"><Droplets className="h-3.5 w-3.5" />{fauceting === wallet.id ? "..." : "Get USDC"}</Button><Button variant="ghost" size="sm" onClick={() => handleDelete(wallet.id)} disabled={deleting === wallet.id} className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5" />{deleting === wallet.id ? "..." : "Delete"}</Button><Button variant="ghost" size="sm" onClick={() => setTrustlineWallet(wallet.id)}>
                     <Link2 className="h-3.5 w-3.5" />
                     Trustline
                   </Button>

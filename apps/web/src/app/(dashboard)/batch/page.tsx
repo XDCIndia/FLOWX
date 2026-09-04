@@ -26,13 +26,13 @@ export default function BatchPage() {
   const walletIds = useMemo(() => getStoredWalletIds(), [getStoredWalletIds]);
 
   const [fromWalletId, setFromWalletId] = useState('');
-  const [items, setItems] = useState<BatchItem[]>([{ to_wallet_id: '', asset: 'XLM', amount: '', reference: '' }]);
+  const [items, setItems] = useState<BatchItem[]>([{ to_wallet_id: '', asset: 'TXDC', amount: '', reference: '' }]);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<BatchResponse | null>(null);
   const [lookupId, setLookupId] = useState('');
   const [lookupLoading, setLookupLoading] = useState(false);
 
-  const addItem = () => setItems((p) => [...p, { to_wallet_id: '', asset: 'XLM', amount: '', reference: '' }]);
+  const addItem = () => setItems((p) => [...p, { to_wallet_id: '', asset: 'TXDC', amount: '', reference: '' }]);
   const removeItem = (idx: number) => setItems((p) => p.filter((_, i) => i !== idx));
   const updateItem = (idx: number, field: keyof BatchItem, val: string) =>
     setItems((p) => p.map((it, i) => (i === idx ? { ...it, [field]: val } : it)));
@@ -115,33 +115,20 @@ export default function BatchPage() {
           <form onSubmit={handleCreate} className="flex flex-col gap-5">
             <div className="flex flex-col gap-1.5 max-w-xs">
               <label className="text-sm font-medium">From Wallet</label>
-              <Select value={fromWalletId} onChange={(e) => setFromWalletId(e.target.value)} required>
-                <option value="">Select wallet</option>
-                {walletIds.map((id) => (
-                  <option key={id} value={id}>
-                    {id.slice(0, 16)}...
-                  </option>
-                ))}
-              </Select>
+              <Input value={fromWalletId} onChange={(e) => setFromWalletId(e.target.value)} placeholder="Enter your wallet ID" required />
             </div>
 
             <div className="flex flex-col gap-3">
               {items.map((it, idx) => (
                 <div key={idx} className="grid grid-cols-12 gap-2 items-end rounded-lg border border-border p-3">
                   <div className="col-span-5 flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">To Wallet</label>
-                    <Select
+                    <label className="text-xs font-medium text-muted-foreground">To Wallet ID</label>
+                    <Input
                       value={it.to_wallet_id}
                       onChange={(e) => updateItem(idx, 'to_wallet_id', e.target.value)}
+                      placeholder="Enter wallet ID or select below"
                       required
-                    >
-                      <option value="">Select</option>
-                      {walletIds.map((id) => (
-                        <option key={id} value={id}>
-                          {id.slice(0, 16)}...
-                        </option>
-                      ))}
-                    </Select>
+                    />
                   </div>
                   <div className="col-span-2 flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground">Asset</label>

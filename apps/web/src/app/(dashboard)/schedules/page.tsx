@@ -27,7 +27,7 @@ export default function SchedulesPage() {
   const [form, setForm] = useState({
     from_wallet_id: '',
     to_wallet_id: '',
-    asset: 'XLM',
+    asset: 'TXDC',
     amount: '',
     frequency: 'weekly' as 'daily' | 'weekly' | 'monthly',
     start_date: new Date().toISOString().slice(0, 16),
@@ -133,25 +133,11 @@ export default function SchedulesPage() {
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">From Wallet</label>
-                  <Select value={form.from_wallet_id} onChange={(e) => setForm({ ...form, from_wallet_id: e.target.value })} required>
-                    <option value="">Select wallet</option>
-                    {walletIds.map((id) => (
-                      <option key={id} value={id}>
-                        {id.slice(0, 16)}...
-                      </option>
-                    ))}
-                  </Select>
+                  <Input value={form.from_wallet_id} onChange={(e) => setForm({ ...form, from_wallet_id: e.target.value })} placeholder="Enter wallet ID" required />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">To Wallet</label>
-                  <Select value={form.to_wallet_id} onChange={(e) => setForm({ ...form, to_wallet_id: e.target.value })} required>
-                    <option value="">Select wallet</option>
-                    {walletIds.map((id) => (
-                      <option key={id} value={id}>
-                        {id.slice(0, 16)}...
-                      </option>
-                    ))}
-                  </Select>
+                  <Input value={form.to_wallet_id} onChange={(e) => setForm({ ...form, to_wallet_id: e.target.value })} placeholder="Enter wallet ID" required />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">

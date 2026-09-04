@@ -37,6 +37,18 @@ export default function FiatPage() {
   }, [walletIds]);
 
   const [tab, setTab] = useState<'deposit' | 'withdraw'>('deposit');
+  
+  // Exchange rates: 1 USDC = X local currency
+  const currencyRates: Record<string, number> = {
+    'NGN': 1500,
+    'USD': 1,
+    'EUR': 0.92,
+    'GBP': 0.79,
+    'INR': 83,
+    'KES': 153,
+    'GHS': 15.8,
+    'ZAR': 18.5,
+  };
 
   // Deposit
   const [deposit, setDeposit] = useState({ wallet_id: '', amount: '', currency: 'NGN', email: '', name: '' });
@@ -162,9 +174,11 @@ export default function FiatPage() {
                     toast('Select wallet and enter amount', 'error');
                     return;
                   }
+                  const rate = currencyRates[deposit.currency.toUpperCase()] || 1500;
+                  const usdcAmount = parseFloat(deposit.amount) / rate;
                   try {
-                    const res = await api.faucet(deposit.wallet_id, 'USDC', parseFloat(deposit.amount) / 1500);
-                    toast(`Simulated! Added ${res.new_balance} USDC (1500 NGN = 1 USDC)`, 'success');
+                    const res = await api.faucet(deposit.wallet_id, 'USDC', usdcAmount);
+                    toast(`Simulated! Added ${usdcAmount.toFixed(2)} USDC (${deposit.amount} ${deposit.currency} = 1 USDC @ ${rate})`, 'success');
                   } catch (err) {
                     toast(err instanceof Error ? err.message : 'Simulate failed', 'error');
                   }

@@ -374,7 +374,7 @@ func main() {
 	}
 	transferHandler := transfer.NewHandler(transferSvc).WithIdempotency(idemMW)
 	fxHandler := fx.NewHandler(fxSvc).WithIdempotency(idemMW)
-	routingHandler := routing.NewHandler()
+	routingHandler := routing.NewHandler(cfg.StripeSecretKey)
 	// Create XDC client for blockchain route
 	var xdcRouteClient *xdc.Client
 	xdcRouteClient, err = xdc.New(context.Background(), cfg.XDCRPCURL, cfg.XDCChainID)

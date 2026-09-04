@@ -17,11 +17,11 @@ type Handler struct {
 }
 
 // NewHandler creates a routing handler with default components.
-func NewHandler() *Handler {
+func NewHandler(stripeKey string) *Handler {
 	evaluator := NewEvaluator(
 		NewOnChainXDCRoute(),
 		NewFiatNGNRoute(),
-		NewStripeBankRoute("sk_test_placeholder"),
+		NewStripeBankRoute(stripeKey),
 	)
 	return &Handler{
 		evaluator: evaluator,

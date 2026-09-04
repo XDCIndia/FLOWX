@@ -60,6 +60,7 @@ export default function FiatPage() {
     wallet_id: '',
     amount: '',
     currency: 'NGN',
+    asset: 'USDC',
     account_bank: '',
     account_number: '',
   });
@@ -213,7 +214,7 @@ export default function FiatPage() {
               <Banknote className="h-5 w-5" />
               Fiat Withdrawal
             </CardTitle>
-            <CardDescription>Converts USDC → fiat at a fixed rate (1500 NGN) and triggers a bank payout.</CardDescription>
+            <CardDescription>Converts USDC/TXDC → fiat and triggers a bank payout.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleWithdraw} className="flex flex-col gap-4">
@@ -228,10 +229,17 @@ export default function FiatPage() {
                   ))}
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">Amount</label>
                   <Input value={withdraw.amount} onChange={(e) => setWithdraw({ ...withdraw, amount: e.target.value })} required className="font-mono" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium">Asset</label>
+                  <select value={withdraw.asset} onChange={(e) => setWithdraw({ ...withdraw, asset: e.target.value })} className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+                    <option value="USDC">USDC</option>
+                    <option value="TXDC">TXDC</option>
+                  </select>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">Currency</label>

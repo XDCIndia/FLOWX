@@ -90,6 +90,7 @@ export default function ConversionsPage() {
                   <label className="text-sm font-medium">From Asset</label>
                   <Select value={fromAsset} onChange={(e) => setFromAsset(e.target.value)}>
                     <option value="USDC">USDC</option>
+                    <option value="TXDC">TXDC</option>
                     <option value="EURC">EURC</option>
                     <option value="XLM">XLM</option>
                   </Select>
@@ -99,6 +100,7 @@ export default function ConversionsPage() {
                   <Select value={toAsset} onChange={(e) => setToAsset(e.target.value)}>
                     <option value="EURC">EURC</option>
                     <option value="USDC">USDC</option>
+                    <option value="TXDC">TXDC</option>
                     <option value="XLM">XLM</option>
                   </Select>
                 </div>

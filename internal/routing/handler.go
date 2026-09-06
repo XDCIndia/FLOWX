@@ -4,11 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"regexp"
+	"strings"
 
 	"github.com/fluxa/fluxa/internal/api"
 	"github.com/go-chi/chi/v5"
 	"github.com/shopspring/decimal"
 )
+
+// chainAddressPattern matches 0x/xdc-prefixed EVM addresses.
+var chainAddressPattern = regexp.MustCompile(`^(0x|xdc)[0-9a-fA-F]{40}$`)
 
 // Handler exposes the routing engine as HTTP endpoints.
 type Handler struct {
@@ -160,13 +165,14 @@ func (h *Handler) quote(w http.ResponseWriter, r *http.Request) {
 }
 
 type sendRequest struct {
-	SourceAsset  string `json:"source_asset"`
-	DestAsset    string `json:"dest_asset"`
-	Amount       string `json:"amount"`
-	RouteID      string `json:"route_id,omitempty"`    // explicit route, or auto-select
-	AutoSelect   bool   `json:"auto_select,omitempty"` // pick best route
-	SourceRegion string `json:"source_region,omitempty"`
-	DestRegion   string `json:"dest_region,omitempty"`
+	SourceAsset        string `json:"source_asset"`
+	DestAsset          string `json:"dest_asset"`
+	Amount             string `json:"amount"`
+	RouteID            string `json:"route_id,omitempty"`      // explicit route, or auto-select
+	AutoSelect         bool   `json:"auto_select,omitempty"`   // pick best route
+	SourceRegion       string `json:"source_region,omitempty"`
+	DestRegion         string `json:"dest_region,omitempty"`
+	DestinationAddress string `json:"destination_address,omitempty"` // beneficiary on-chain address (0x/xdc + 40 hex)
 }
 
 // send executes a payment with auto-selected or explicit route.
@@ -183,12 +189,26 @@ func (h *Handler) send(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate + normalize the beneficiary address (xdc prefix → 0x).
+	destAddr := strings.TrimSpace(req.DestinationAddress)
+	if destAddr != "" {
+		if !chainAddressPattern.MatchString(destAddr) {
+			api.BadRequest(w, "destination_address must be 0x/xdc followed by 40 hex characters")
+			return
+		}
+		if strings.HasPrefix(destAddr, "xdc") {
+			destAddr = "0x" + destAddr[3:]
+		}
+		destAddr = strings.ToLower(destAddr)
+	}
+
 	paymentReq := PaymentRequest{
-		SourceAsset:  req.SourceAsset,
-		DestAsset:    req.DestAsset,
-		Amount:       amount,
-		SourceRegion: req.SourceRegion,
-		DestRegion:   req.DestRegion,
+		SourceAsset:        req.SourceAsset,
+		DestAsset:          req.DestAsset,
+		Amount:             amount,
+		SourceRegion:       req.SourceRegion,
+		DestRegion:         req.DestRegion,
+		DestinationAddress: destAddr,
 	}
 
 	// Get quotes

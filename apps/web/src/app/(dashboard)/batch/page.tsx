@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api, type BatchResponse } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/lib/toast-context';
@@ -23,6 +23,11 @@ interface BatchItem {
 // Address destinations (0x… on XDC) are sent as to_address; anything else
 // is treated as a FlowX wallet UUID.
 const isChainAddress = (v: string) => /^(0x|xdc)[0-9a-fA-F]{40}$/.test(v.trim());
+
+// Batch status is computed live by the API; poll until it reaches a
+// terminal state so the user doesn't have to re-fetch manually.
+const TERMINAL_STATUSES = new Set(['completed', 'partial', 'failed', 'compliance_hold']);
+const LAST_BATCH_KEY = 'flowx_last_batch_id';
 
 export default function BatchPage() {
   
@@ -49,6 +54,50 @@ export default function BatchPage() {
   const [lookupId, setLookupId] = useState('');
   const [lookupLoading, setLookupLoading] = useState(false);
 
+  // Single entry point for adopting a batch result: shows it and remembers
+  // its id so the status card survives a page refresh.
+  const applyBatch = (r: BatchResponse) => {
+    setResult(r);
+    setLookupId(r.id);
+    try {
+      localStorage.setItem(LAST_BATCH_KEY, r.id);
+    } catch {}
+  };
+
+  // Restore the last viewed batch after a refresh.
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    let id = '';
+    try {
+      id = localStorage.getItem(LAST_BATCH_KEY) || '';
+    } catch {}
+    if (!id) return;
+    setLookupId(id);
+    api
+      .getBatch(id)
+      .then(applyBatch)
+      .catch(() => {
+        try {
+          localStorage.removeItem(LAST_BATCH_KEY);
+        } catch {}
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Poll while the batch is still settling.
+  useEffect(() => {
+    if (!result || TERMINAL_STATUSES.has(result.status)) return;
+    const timer = setInterval(async () => {
+      try {
+        const r = await api.getBatch(result.id);
+        setResult((prev) => (prev && prev.id === r.id ? r : prev));
+      } catch {}
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [result?.id, result?.status]);
+
   const addItem = () => setItems((p) => [...p, { to_wallet_id: '', asset: 'TXDC', amount: '', reference: '' }]);
   const removeItem = (idx: number) => setItems((p) => p.filter((_, i) => i !== idx));
   const updateItem = (idx: number, field: keyof BatchItem, val: string) =>
@@ -66,7 +115,7 @@ export default function BatchPage() {
             : { to_wallet_id: it.to_wallet_id, asset: it.asset, amount: it.amount, reference: it.reference }
         ),
       });
-      setResult(res);
+      applyBatch(res);
       toast(`Batch ${res.status} — ${res.total_count} transfers`, 'success');
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Batch failed', 'error');
@@ -80,7 +129,7 @@ export default function BatchPage() {
     setLookupLoading(true);
     try {
       const r = await api.getBatch(lookupId);
-      setResult(r);
+      applyBatch(r);
       toast('Batch fetched', 'success');
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Not found', 'error');

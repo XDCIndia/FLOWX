@@ -81,8 +81,23 @@ func (s *Scorer) ScoreAndRank(quotes []RouteQuote) []RouteScore {
 	}
 
 	scores := make([]RouteScore, 0, len(quotes))
+
+	// Find the best output ratio (dest/source) across all quotes for this
+	// corridor. Used to normalize the liquidity score so it is unit-free:
+	// each route is compared against the best available rate, not against
+	// raw cross-currency units.
+	bestRatio := decimal.Zero
 	for _, q := range quotes {
-		scores = append(scores, s.scoreQuote(q))
+		if q.SourceAmount.GreaterThan(decimal.Zero) {
+			ratio := q.DestAmount.Div(q.SourceAmount)
+			if ratio.GreaterThan(bestRatio) {
+				bestRatio = ratio
+			}
+		}
+	}
+
+	for _, q := range quotes {
+		scores = append(scores, s.scoreQuote(q, bestRatio))
 	}
 
 	// Sort by score descending
@@ -98,7 +113,7 @@ func (s *Scorer) ScoreAndRank(quotes []RouteQuote) []RouteScore {
 	return scores
 }
 
-func (s *Scorer) scoreQuote(q RouteQuote) RouteScore {
+func (s *Scorer) scoreQuote(q RouteQuote, bestRatio decimal.Decimal) RouteScore {
 	rs := RouteScore{Quote: q}
 
 	// Cost score: lower total cost (fee + spread) = higher score
@@ -129,10 +144,13 @@ func (s *Scorer) scoreQuote(q RouteQuote) RouteScore {
 	// Compliance score: simpler = higher (no KYC = 100, KYC required = 60)
 	rs.Compliance = 85
 
-	// Liquidity score: higher dest amount relative to source = better
-	if q.SourceAmount.GreaterThan(decimal.Zero) {
-		efficiency := q.DestAmount.Div(q.SourceAmount).InexactFloat64()
-		rs.Liquidity = clamp(efficiency * 50) // normalized
+	// Liquidity score: how close the route's output is to the best output
+	// available for this corridor (unit-free, normalized across quotes).
+	if q.SourceAmount.GreaterThan(decimal.Zero) && bestRatio.GreaterThan(decimal.Zero) {
+		ratio := q.DestAmount.Div(q.SourceAmount)
+		rs.Liquidity = clamp(ratio.Div(bestRatio).Mul(decimal.NewFromInt(100)).InexactFloat64())
+	} else {
+		rs.Liquidity = 85 // neutral default when no comparison is possible
 	}
 
 	// Composite score

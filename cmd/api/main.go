@@ -384,9 +384,9 @@ func main() {
 	// Treasury wallet sends TXDC; second wallet is demo recipient
 	recipientAddr := "0x7c42b69b8668504cbbcd3dc9506f0493f4f75fed"
 	routingHandler.RegisterRoute(routing.NewXDCBridgeRoute(xdcRouteClient, cfg.XDCTreasurySecretKey, recipientAddr))
-	routingHandler.RegisterRoute(fiat.NewPaymentNetworkRoute("INR-EUR"))
-	routingHandler.RegisterRoute(fiat.NewPaymentNetworkRoute("EUR-INR"))
-	routingHandler.RegisterRoute(routing.NewStripeBankRoute(cfg.StripeSecretKey))
+	routingHandler.RegisterRoute(fiat.NewPaymentNetworkRoute("INR-EUR", fxSvc))
+	routingHandler.RegisterRoute(fiat.NewPaymentNetworkRoute("EUR-INR", fxSvc))
+	routingHandler.RegisterRoute(routing.NewStripeBankRoute(cfg.StripeSecretKey, fxSvc))
 	fiatHandler := fiat.NewHandler(fiatSvc)
 	anchorFiatHandler := fiat.NewAnchorHandler(anchorFiatSvc)
 	anchorHandler := anchor.NewHandler(anchorRegistry)

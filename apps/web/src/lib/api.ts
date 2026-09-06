@@ -120,6 +120,7 @@ export interface Transaction {
   status: string;
   from_wallet_id: string;
   to_wallet_id: string;
+  to_address?: string; // set for external-address payouts (compliance holds, on-chain sends)
   asset: string;
   amount: string;
   fee_amount: string;

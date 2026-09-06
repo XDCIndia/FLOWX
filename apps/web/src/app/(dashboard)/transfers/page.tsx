@@ -25,12 +25,20 @@ import { ArrowRightLeft, ExternalLink, Plus, X, Download, Copy } from 'lucide-re
 function statusBadge(status: string) {
   if (status === 'confirmed') return <Badge variant="success">{status}</Badge>;
   if (status === 'pending') return <Badge variant="warning">{status}</Badge>;
+  if (status === 'compliance_hold') return <Badge variant="warning">compliance hold</Badge>;
   return <Badge variant="danger">{status}</Badge>;
 }
 
 /** Convert xdc... prefix to 0x... for display. */
 function toDisplayAddress(key: string) {
   return key.toLowerCase().startsWith('xdc') ? '0x' + key.slice(3) : key;
+}
+
+/** Shorten any 0x/xdc address for table cells. */
+function shortAddress(addr?: string) {
+  if (!addr) return '—';
+  const a = toDisplayAddress(addr);
+  return `${a.slice(0, 10)}...${a.slice(-6)}`;
 }
 
 export default function TransfersPage() {
@@ -142,7 +150,8 @@ export default function TransfersPage() {
     toast('Address copied', 'info');
   };
 
-  const getWalletLabel = (id: string) => {
+  const getWalletLabel = (id?: string) => {
+    if (!id) return '—';
     const wallet = wallets.get(id);
     if (wallet) {
       const addr = toDisplayAddress(wallet.public_key);
@@ -462,7 +471,9 @@ export default function TransfersPage() {
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {getWalletLabel(tr.from_wallet_id)} &rarr;{' '}
-                    {getWalletLabel(tr.to_wallet_id)}
+                    {tr.to_wallet_id
+                      ? getWalletLabel(tr.to_wallet_id)
+                      : shortAddress(tr.to_address)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {new Date(tr.created_at).toLocaleString()}

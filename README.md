@@ -280,6 +280,18 @@ GET  /health                       Health check
 
 ---
 
+## Future Scope
+
+- **Verifiable compliance receipts on XDC** — anchor every screening decision (pass / hold / block + rule fired + list version) as an on-chain event tied to the payment's tx_hash. Today regulators must *trust* that screening ran; this makes it *provable* and tamper-evident. Designed and scoped (~2h: `ComplianceReceipt.sol` event, reuse the existing per-wallet nonce mutex and `@daily` list-refresh job); deferred to post-hackathon.
+- **On-chain sanctions denylist registry** — publish the OFAC-derived sanctioned-address set (991 addresses today) as a Merkle root on XDC, updated by the existing refresh worker, so any wallet or contract on the network can screen transfers without trusting a central API. Compliance as network infrastructure, not a single platform's feature.
+- **KYC-gated settlement token (ERC-3643-style identity registry)** — XDC is EVM-native, so a permissioned XRC-20 with an on-chain identity registry + off-chain verifiable credentials would let only attested addresses hold/transfer settlement value.
+- **Travel-rule anchoring** — hash IVMS-101 travel-rule payloads between VASPs on-chain for tamper-evident cross-border messaging.
+- **Merkle-batched screening receipts** — production path for high volume: batch receipts into a single on-chain root instead of one tx per transfer.
+
+The compliance foundation for all of the above already ships today: real OFAC SDN sync (44,719 entities), sanctions + velocity screening on every transfer, a human review queue, and tx_hash as the receipt of truth.
+
+---
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.

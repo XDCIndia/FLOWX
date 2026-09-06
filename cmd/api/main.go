@@ -401,7 +401,7 @@ func main() {
 		authHandler, orgHandler, walletHandler, transferHandler, fxHandler, fiatHandler,
 		anchorFiatHandler, anchorHandler,
 		feeHandler, reconcileHandler, apikeyHandler, apiKeyRepo,
-		webhookHandler, batchHandler, scheduleHandler, treasuryHandler, complianceHandler, routingHandler, jwtSecretBytes, cfg.Port,
+		webhookHandler, batchHandler, scheduleHandler, treasuryHandler, complianceHandler, routingHandler, cfg.CORSOrigins, jwtSecretBytes, cfg.Port,
 		map[string]server.DependencyCheck{
 			"postgres": db.Ping,
 			"replica":  func(ctx context.Context) error { return repoDB.ReplicaAvailable(ctx) },

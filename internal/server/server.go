@@ -54,6 +54,7 @@ func New(
 	treasuryHandler *treasury.Handler,
 	complianceHandler *compliance.Handler,
 	routingHandler *routing.Handler,
+	corsOrigins []string,
 	jwtSecret []byte,
 	port string,
 	healthChecks map[string]DependencyCheck,
@@ -65,7 +66,8 @@ func New(
 	r.Use(requestID)
 	r.Use(logger)
 	r.Use(recoverer)
-	r.Use(CORS)
+	r.Use(CORS(corsOrigins))
+	r.Use(SecurityHeaders)
 	r.Use(MaxBodySize(1 << 20))
 	r.Use(MetricsMiddleware)
 

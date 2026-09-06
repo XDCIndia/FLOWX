@@ -52,6 +52,7 @@ type Config struct {
 	AppBaseURL string
 	BalanceDiscrepancyThreshold string
 	JWTSecret                   string
+	CORSOrigins                 []string
 	FXSpreadBps                 int
 	SorobanRPCURL               string
 	ContractWalletWasmHash      string
@@ -138,6 +139,15 @@ func Load() (*Config, error) {
 		}
 	}
 
+	corsOrigins := parseOrigins(viper.GetString("CORS_ORIGINS"))
+	if env == "production" {
+		for _, o := range corsOrigins {
+			if o == "*" {
+				return nil, fmt.Errorf("CORS_ORIGINS must not contain '*' in production; set an explicit origin allowlist")
+			}
+		}
+	}
+
 	ycSandbox, _ := strconv.ParseBool(viper.GetString("YELLOW_CARD_SANDBOX"))
 	complianceEnabled, _ := strconv.ParseBool(viper.GetString("COMPLIANCE_ENABLED"))
 	workerEnabled, _ := strconv.ParseBool(viper.GetString("WORKER_ENABLED"))
@@ -194,5 +204,25 @@ func Load() (*Config, error) {
 		ComplianceFuzzyThreshold:    viper.GetInt("COMPLIANCE_FUZZY_THRESHOLD"),
 		ComplianceReloadMinutes:     viper.GetInt("COMPLIANCE_RELOAD_MINUTES"),
 		WorkerEnabled:               workerEnabled,
+		CORSOrigins:                 corsOrigins,
 	}, nil
+}
+
+// parseOrigins splits a comma-separated origin list, trimming whitespace
+// and dropping empty entries. Returns ["*"] for empty input (dev default).
+func parseOrigins(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return []string{"*"}
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if o := strings.TrimSpace(p); o != "" {
+			out = append(out, o)
+		}
+	}
+	if len(out) == 0 {
+		return []string{"*"}
+	}
+	return out
 }

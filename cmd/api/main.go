@@ -386,6 +386,8 @@ func main() {
 	routingHandler.RegisterRoute(routing.NewXDCBridgeRoute(xdcRouteClient, cfg.XDCTreasurySecretKey, recipientAddr, fxSvc))
 	routingHandler.RegisterRoute(fiat.NewPaymentNetworkRoute("INR-EUR", fxSvc))
 	routingHandler.RegisterRoute(fiat.NewPaymentNetworkRoute("EUR-INR", fxSvc))
+	routingHandler.RegisterRoute(fiat.NewPaymentNetworkRoute("INR-USDC", fxSvc))
+	routingHandler.RegisterRoute(fiat.NewPaymentNetworkRoute("USDC-INR", fxSvc))
 	routingHandler.RegisterRoute(routing.NewStripeBankRoute(cfg.StripeSecretKey, fxSvc))
 	fiatHandler := fiat.NewHandler(fiatSvc)
 	anchorFiatHandler := fiat.NewAnchorHandler(anchorFiatSvc)

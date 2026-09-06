@@ -28,6 +28,8 @@ func NewPaymentNetworkRoute(corridor string, fxSvc fx.Service) *PaymentNetworkRo
 	fees := map[string]decimal.Decimal{
 		"INR-EUR": decimal.NewFromInt(1200),
 		"EUR-INR": decimal.NewFromFloat(8),
+		"INR-USDC": decimal.NewFromFloat(6.5), // ₹6.5 flat
+		"USDC-INR": decimal.NewFromFloat(0.05), // $0.05 flat
 	}
 	fee := fees[corridor]
 	if fee.IsZero() {

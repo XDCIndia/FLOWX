@@ -14,6 +14,7 @@ import (
 	"github.com/stellar/go/keypair"
 	stellarnetwork "github.com/stellar/go/network"
 	"github.com/stellar/go/protocols/horizon"
+	"github.com/stellar/go/protocols/horizon/base"
 	"github.com/stellar/go/protocols/horizon/operations"
 	"github.com/stellar/go/txnbuild"
 )
@@ -187,6 +188,8 @@ func (f *fakeWalletRepo) GetByID(_ context.Context, id string) (*domain.Wallet, 
 	}
 	return w, nil
 }
+func (f *fakeWalletRepo) Delete(_ context.Context, _ string) error { return nil }
+
 func (f *fakeWalletRepo) GetByPublicKey(_ context.Context, _ string) (*domain.Wallet, error) {
 	return nil, fmt.Errorf("not found")
 }
@@ -245,7 +248,13 @@ type fakeStellarClient struct {
 }
 
 func (f *fakeStellarClient) LoadAccount(accountID string) (horizon.Account, error) {
-	return horizon.Account{AccountID: accountID, Sequence: f.sequence}, nil
+	return horizon.Account{
+		AccountID: accountID,
+		Sequence:  f.sequence,
+		Balances: []horizon.Balance{
+			{Balance: "10000.0000000", Asset: base.Asset{Type: "native", Code: "XLM"}},
+		},
+	}, nil
 }
 func (f *fakeStellarClient) SubmitTransaction(tx *txnbuild.Transaction) (horizon.Transaction, error) {
 	f.mu.Lock()
@@ -344,7 +353,8 @@ func TestSubmitTransfer_Success_CollectsFees(t *testing.T) {
 	walletRepo := &fakeWalletRepo{wallets: map[string]*domain.Wallet{src.ID: src, dst.ID: dst}}
 	feeSvc := &fakeFeesService{}
 	stl := &fakeStellarClient{submitFunc: alwaysSucceeds()}
-	e := newTestEngine(txRepo, walletRepo, feeSvc, stl)
+	feeKP := keypair.MustRandom()
+	e := NewEngine(txRepo, walletRepo, feeSvc, stl, identitySigner{}, "testnet", nil, feeKP.Address())
 
 	if err := e.SubmitTransfer(context.Background(), "tx-fee"); err != nil {
 		t.Fatalf("unexpected error: %v", err)

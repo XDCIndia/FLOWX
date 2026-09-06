@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/fluxa/fluxa/internal/chain/xdc"
 	"github.com/fluxa/fluxa/internal/domain"
 	"github.com/shopspring/decimal"
 )
@@ -16,6 +17,8 @@ type mockFXService struct {
 	executeConversionFunc func(ctx context.Context, walletID, quoteID string) (*domain.Conversion, error)
 	getRatesFunc          func(ctx context.Context, from, to string) (*RateResponse, error)
 }
+
+func (m *mockFXService) WithXDC(_ *xdc.Client, _ string) Service { return m }
 
 func (m *mockFXService) GetQuote(ctx context.Context, from, to, amount string) (*Quote, error) {
 	if m.getQuoteFunc != nil {

@@ -40,6 +40,8 @@ func (m *fullMockRepo) GetByID(ctx context.Context, id string) (*domain.Wallet, 
 	return w, nil
 }
 
+func (m *fullMockRepo) Delete(_ context.Context, _ string) error { return nil }
+
 func (m *fullMockRepo) GetByPublicKey(ctx context.Context, pubKey string) (*domain.Wallet, error) {
 	for _, w := range m.wallets {
 		if w.PublicKey == pubKey {

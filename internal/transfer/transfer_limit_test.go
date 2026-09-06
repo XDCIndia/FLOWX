@@ -78,6 +78,8 @@ func (m *limitMockWalletRepo) Create(_ context.Context, _ *domain.Wallet) error 
 func (m *limitMockWalletRepo) GetByID(_ context.Context, id string) (*domain.Wallet, error) {
 	return &domain.Wallet{ID: id, PublicKey: "G" + id}, nil
 }
+func (m *limitMockWalletRepo) Delete(_ context.Context, _ string) error { return nil }
+
 func (m *limitMockWalletRepo) GetByPublicKey(_ context.Context, _ string) (*domain.Wallet, error) {
 	return nil, domain.ErrWalletNotFound
 }

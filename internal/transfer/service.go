@@ -39,6 +39,14 @@ type Service interface {
 	// using InitiateTransfer directly.
 	InitiateTransferIdempotent(ctx context.Context, fromID, toID, asset string, amount decimal.Decimal, idempotencyKey string) (*domain.Transaction, error)
 	InitiateBatchTransfer(ctx context.Context, fromID, toID, asset string, amount decimal.Decimal, batchID, reference string) (*domain.Transaction, error)
+	// InitiatePayout sends to a raw on-chain address (0x...) instead of a
+	// FlowX wallet. The settlement engine broadcasts from the source wallet
+	// directly; tx.ToAddress carries the destination. Idempotent variant
+	// mirrors InitiateTransferIdempotent.
+	InitiatePayout(ctx context.Context, fromID, toAddress, asset string, amount decimal.Decimal) (*domain.Transaction, error)
+	InitiatePayoutIdempotent(ctx context.Context, fromID, toAddress, asset string, amount decimal.Decimal, idempotencyKey string) (*domain.Transaction, error)
+	// InitiateBatchPayout is InitiatePayout scoped to a batch.
+	InitiateBatchPayout(ctx context.Context, fromID, toAddress, asset string, amount decimal.Decimal, batchID, reference string) (*domain.Transaction, error)
 	GetTransaction(ctx context.Context, id string) (*domain.Transaction, error)
 	ListTransactions(ctx context.Context, walletID string, limit, offset int) ([]*domain.Transaction, error)
 	WithStellarClient(stellarClient stellar.Client) Service
@@ -77,7 +85,7 @@ func (s *service) WithScreener(screener Screener) Service {
 }
 
 func (s *service) InitiateTransfer(ctx context.Context, fromID, toID, asset string, amount decimal.Decimal) (*domain.Transaction, error) {
-	return s.initiate(ctx, fromID, toID, asset, amount, "", "", "")
+	return s.initiate(ctx, fromID, toID, "", asset, amount, "", "", "")
 }
 
 func (s *service) InitiateTransferIdempotent(ctx context.Context, fromID, toID, asset string, amount decimal.Decimal, idempotencyKey string) (*domain.Transaction, error) {
@@ -88,16 +96,38 @@ func (s *service) InitiateTransferIdempotent(ctx context.Context, fromID, toID, 
 			return nil, fmt.Errorf("check idempotency key: %w", err)
 		}
 	}
-	return s.initiate(ctx, fromID, toID, asset, amount, "", "", idempotencyKey)
+	return s.initiate(ctx, fromID, toID, "", asset, amount, "", "", idempotencyKey)
 }
 
 func (s *service) InitiateBatchTransfer(ctx context.Context, fromID, toID, asset string, amount decimal.Decimal, batchID, reference string) (*domain.Transaction, error) {
-	return s.initiate(ctx, fromID, toID, asset, amount, batchID, reference, "")
+	return s.initiate(ctx, fromID, toID, "", asset, amount, batchID, reference, "")
 }
 
-func (s *service) initiate(ctx context.Context, fromID, toID, asset string, amount decimal.Decimal, batchID, reference, idempotencyKey string) (*domain.Transaction, error) {
-	if fromID == toID {
+func (s *service) InitiatePayout(ctx context.Context, fromID, toAddress, asset string, amount decimal.Decimal) (*domain.Transaction, error) {
+	return s.initiate(ctx, fromID, "", toAddress, asset, amount, "", "", "")
+}
+
+func (s *service) InitiatePayoutIdempotent(ctx context.Context, fromID, toAddress, asset string, amount decimal.Decimal, idempotencyKey string) (*domain.Transaction, error) {
+	if idempotencyKey != "" {
+		if existing, err := s.repo.GetByIdempotencyKey(ctx, tenant.IDFromContext(ctx), idempotencyKey); err == nil {
+			return existing, nil
+		} else if !errors.Is(err, domain.ErrTransactionNotFound) {
+			return nil, fmt.Errorf("check idempotency key: %w", err)
+		}
+	}
+	return s.initiate(ctx, fromID, "", toAddress, asset, amount, "", "", idempotencyKey)
+}
+
+func (s *service) InitiateBatchPayout(ctx context.Context, fromID, toAddress, asset string, amount decimal.Decimal, batchID, reference string) (*domain.Transaction, error) {
+	return s.initiate(ctx, fromID, "", toAddress, asset, amount, batchID, reference, "")
+}
+
+func (s *service) initiate(ctx context.Context, fromID, toID, toAddress, asset string, amount decimal.Decimal, batchID, reference, idempotencyKey string) (*domain.Transaction, error) {
+	if toID != "" && fromID == toID {
 		return nil, domain.ErrSelfTransfer
+	}
+	if toAddress != "" && !IsValidDestinationAddress(toAddress) {
+		return nil, fmt.Errorf("%w: %s", domain.ErrInvalidDestinationAddress, toAddress)
 	}
 
 	tenantID := tenant.IDFromContext(ctx)
@@ -113,9 +143,12 @@ func (s *service) initiate(ctx context.Context, fromID, toID, asset string, amou
 	if err != nil {
 		return nil, fmt.Errorf("source wallet: %w", err)
 	}
-	dstWallet, err := s.walletRepo.GetByID(ctx, toID)
-	if err != nil {
-		return nil, fmt.Errorf("destination wallet: %w", err)
+	var dstWallet *domain.Wallet
+	if toID != "" {
+		dstWallet, err = s.walletRepo.GetByID(ctx, toID)
+		if err != nil {
+			return nil, fmt.Errorf("destination wallet: %w", err)
+		}
 	}
 
 	// Validate trustline on source wallet for non-native assets. XLM (Stellar)
@@ -132,12 +165,16 @@ func (s *service) initiate(ctx context.Context, fromID, toID, asset string, amou
 	status := domain.StatusPending
 	var decision *domain.ScreeningDecision
 	if s.screener != nil {
+		toPublicKey := toAddress
+		if dstWallet != nil {
+			toPublicKey = dstWallet.PublicKey
+		}
 		decision, err = s.screener.ScreenTransfer(ctx, domain.ScreeningRequest{
 			OrgID:         tenantID,
 			FromWalletID:  fromID,
 			ToWalletID:    toID,
 			FromPublicKey: srcWallet.PublicKey,
-			ToPublicKey:   dstWallet.PublicKey,
+			ToPublicKey:   toPublicKey,
 			Asset:         asset,
 			Amount:        amount,
 		})
@@ -184,6 +221,7 @@ func (s *service) initiate(ctx context.Context, fromID, toID, asset string, amou
 		Status:         status,
 		FromWallet:     fromID,
 		ToWallet:       toID,
+		ToAddress:      toAddress,
 		Asset:          asset,
 		Amount:         amount,
 		Fee:            feeResult.FeeAmount,

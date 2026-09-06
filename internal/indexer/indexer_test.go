@@ -44,6 +44,8 @@ func (f *fakeWalletRepo) GetByID(_ context.Context, id string) (*domain.Wallet, 
 	return w, nil
 }
 
+func (f *fakeWalletRepo) Delete(_ context.Context, _ string) error { return nil }
+
 func (f *fakeWalletRepo) GetByPublicKey(_ context.Context, pubKey string) (*domain.Wallet, error) {
 	for _, w := range f.wallets {
 		if w.PublicKey == pubKey {

@@ -27,10 +27,10 @@ func (r *TransactionRepo) Create(ctx context.Context, tx *domain.Transaction) er
 		tx.TenantID = &tID
 	}
 	_, err := r.db.Exec(ctx,
-		`INSERT INTO transactions (id, tx_hash, type, status, from_wallet, to_wallet, asset, amount, fee, fee_bps, tenant_id, created_at, requeue_count, reconciled_at, fiat_rail, fiat_provider_ref, fiat_status, local_currency, local_amount, batch_id, reference, idempotency_key)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
+		`INSERT INTO transactions (id, tx_hash, type, status, from_wallet, to_wallet, to_address, asset, amount, fee, fee_bps, tenant_id, created_at, requeue_count, reconciled_at, fiat_rail, fiat_provider_ref, fiat_status, local_currency, local_amount, batch_id, reference, idempotency_key)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)`,
 		tx.ID, nullableString(tx.TxHash), tx.Type, tx.Status,
-		nullableString(tx.FromWallet), nullableString(tx.ToWallet),
+		nullableString(tx.FromWallet), nullableString(tx.ToWallet), nullableString(tx.ToAddress),
 		tx.Asset, tx.Amount.String(), tx.Fee.String(), nullableFeeBps(tx.FeeBps),
 		nullableUUID(tx.TenantID), tx.CreatedAt,
 		tx.RequeueCount, nullableTime(tx.ReconciledAt),
@@ -71,7 +71,7 @@ func (r *TransactionRepo) GetByID(ctx context.Context, id string) (*domain.Trans
 
 	tID := tenant.IDFromContext(ctx)
 	query := `SELECT id, COALESCE(tx_hash,''), type, status,
-		        COALESCE(from_wallet::text,''), COALESCE(to_wallet::text,''),
+		        COALESCE(from_wallet::text,''), COALESCE(to_wallet::text,''), COALESCE(to_address::text,''),
 		        asset, amount, COALESCE(fee,'0'), fee_bps, tenant_id, created_at,
 		        COALESCE(requeue_count, 0), reconciled_at,
 		        fiat_rail, fiat_provider_ref, fiat_status, local_currency, local_amount,
@@ -84,7 +84,7 @@ func (r *TransactionRepo) GetByID(ctx context.Context, id string) (*domain.Trans
 	}
 
 	err := r.db.QueryRow(ctx, query, args...).Scan(&tx.ID, &tx.TxHash, &tx.Type, &tx.Status,
-		&tx.FromWallet, &tx.ToWallet,
+		&tx.FromWallet, &tx.ToWallet, &tx.ToAddress,
 		&tx.Asset, &amount, &fee, &feeBps, &tenantID, &tx.CreatedAt,
 		&tx.RequeueCount, &tx.ReconciledAt,
 		&tx.FiatRail, &tx.FiatProviderRef, &tx.FiatStatus, &tx.LocalCurrency, &localAmt,
@@ -122,7 +122,7 @@ func (r *TransactionRepo) GetByIdempotencyKey(ctx context.Context, orgID, idempo
 	var reference string
 
 	query := `SELECT id, COALESCE(tx_hash,''), type, status,
-		        COALESCE(from_wallet::text,''), COALESCE(to_wallet::text,''),
+		        COALESCE(from_wallet::text,''), COALESCE(to_wallet::text,''), COALESCE(to_address::text,''),
 		        asset, amount, COALESCE(fee,'0'), fee_bps, tenant_id, created_at,
 		        COALESCE(requeue_count, 0), reconciled_at, batch_id, COALESCE(reference,'')
 		 FROM transactions WHERE idempotency_key = $1`
@@ -133,7 +133,7 @@ func (r *TransactionRepo) GetByIdempotencyKey(ctx context.Context, orgID, idempo
 	}
 
 	err := r.db.QueryRow(ctx, query, args...).Scan(&tx.ID, &tx.TxHash, &tx.Type, &tx.Status,
-		&tx.FromWallet, &tx.ToWallet,
+		&tx.FromWallet, &tx.ToWallet, &tx.ToAddress,
 		&tx.Asset, &amount, &fee, &feeBps, &tenantID, &tx.CreatedAt,
 		&tx.RequeueCount, &tx.ReconciledAt, &batchID, &reference)
 	if err != nil {
@@ -227,7 +227,7 @@ func (r *TransactionRepo) ListByWallet(ctx context.Context, walletID string, lim
 	tID := tenant.IDFromContext(ctx)
 
 	query := `SELECT id, COALESCE(tx_hash,''), type, status,
-		        COALESCE(from_wallet::text,''), COALESCE(to_wallet::text,''),
+		        COALESCE(from_wallet::text,''), COALESCE(to_wallet::text,''), COALESCE(to_address::text,''),
 		        asset, amount, COALESCE(fee,'0'), fee_bps, tenant_id, created_at,
 		        COALESCE(requeue_count, 0), reconciled_at,
 		        fiat_rail, fiat_provider_ref, fiat_status, local_currency, local_amount,
@@ -262,7 +262,7 @@ func (r *TransactionRepo) ListByBatch(ctx context.Context, batchID string) ([]*d
 	tID := tenant.IDFromContext(ctx)
 
 	query := `SELECT id, COALESCE(tx_hash,''), type, status,
-		        COALESCE(from_wallet::text,''), COALESCE(to_wallet::text,''),
+		        COALESCE(from_wallet::text,''), COALESCE(to_wallet::text,''), COALESCE(to_address::text,''),
 		        asset, amount, COALESCE(fee,'0'), fee_bps, tenant_id, created_at,
 		        COALESCE(requeue_count, 0), reconciled_at,
 		        fiat_rail, fiat_provider_ref, fiat_status, local_currency, local_amount,
@@ -298,7 +298,7 @@ func scanTransactions(rows pgx.Rows) ([]*domain.Transaction, error) {
 		var tenantID, batchID *string
 		var reference string
 		if err := rows.Scan(&tx.ID, &tx.TxHash, &tx.Type, &tx.Status,
-			&tx.FromWallet, &tx.ToWallet,
+			&tx.FromWallet, &tx.ToWallet, &tx.ToAddress,
 			&tx.Asset, &amount, &fee, &feeBps, &tenantID, &tx.CreatedAt,
 			&tx.RequeueCount, &tx.ReconciledAt,
 			&tx.FiatRail, &tx.FiatProviderRef, &tx.FiatStatus, &tx.LocalCurrency, &localAmt,
@@ -369,7 +369,7 @@ func nullableDecimalPtr(d *decimal.Decimal) interface{} {
 func (r *TransactionRepo) GetConfirmedTxesForReconciliation(ctx context.Context, since time.Duration) ([]*domain.Transaction, error) {
 	rows, err := r.db.Query(ctx,
 		`SELECT id, tx_hash, type, status,
-		        COALESCE(from_wallet::text,''), COALESCE(to_wallet::text,''),
+		        COALESCE(from_wallet::text,''), COALESCE(to_wallet::text,''), COALESCE(to_address::text,''),
 		        asset, amount, COALESCE(fee,'0'), fee_bps, tenant_id, created_at,
 		        COALESCE(requeue_count, 0), reconciled_at
 		 FROM transactions
@@ -391,7 +391,7 @@ func (r *TransactionRepo) GetConfirmedTxesForReconciliation(ctx context.Context,
 		var feeBps *int
 		var tenantID *string
 		if err := rows.Scan(&tx.ID, &tx.TxHash, &tx.Type, &tx.Status,
-			&tx.FromWallet, &tx.ToWallet,
+			&tx.FromWallet, &tx.ToWallet, &tx.ToAddress,
 			&tx.Asset, &amount, &fee, &feeBps, &tenantID, &tx.CreatedAt,
 			&tx.RequeueCount, &tx.ReconciledAt); err != nil {
 			return nil, err
@@ -417,7 +417,7 @@ func (r *TransactionRepo) GetConfirmedTxesForReconciliation(ctx context.Context,
 func (r *TransactionRepo) GetStuckPendingTxes(ctx context.Context, olderThan time.Duration) ([]*domain.Transaction, error) {
 	rows, err := r.db.Query(ctx,
 		`SELECT id, tx_hash, type, status,
-		        COALESCE(from_wallet::text,''), COALESCE(to_wallet::text,''),
+		        COALESCE(from_wallet::text,''), COALESCE(to_wallet::text,''), COALESCE(to_address::text,''),
 		        asset, amount, COALESCE(fee,'0'), fee_bps, tenant_id, created_at,
 		        COALESCE(requeue_count, 0), reconciled_at
 		 FROM transactions
@@ -438,7 +438,7 @@ func (r *TransactionRepo) GetStuckPendingTxes(ctx context.Context, olderThan tim
 		var feeBps *int
 		var tenantID *string
 		if err := rows.Scan(&tx.ID, &tx.TxHash, &tx.Type, &tx.Status,
-			&tx.FromWallet, &tx.ToWallet,
+			&tx.FromWallet, &tx.ToWallet, &tx.ToAddress,
 			&tx.Asset, &amount, &fee, &feeBps, &tenantID, &tx.CreatedAt,
 			&tx.RequeueCount, &tx.ReconciledAt); err != nil {
 			return nil, err
@@ -557,11 +557,11 @@ func (r *TransactionRepo) UpsertByTxHash(ctx context.Context, tx *domain.Transac
 		tx.TenantID = &tID
 	}
 	_, err := r.db.Exec(ctx,
-		`INSERT INTO transactions (id, tx_hash, type, status, from_wallet, to_wallet, asset, amount, fee, fee_bps, tenant_id, created_at, requeue_count, reconciled_at, fiat_rail, fiat_provider_ref, fiat_status, local_currency, local_amount, batch_id, reference, idempotency_key)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+		`INSERT INTO transactions (id, tx_hash, type, status, from_wallet, to_wallet, to_address, asset, amount, fee, fee_bps, tenant_id, created_at, requeue_count, reconciled_at, fiat_rail, fiat_provider_ref, fiat_status, local_currency, local_amount, batch_id, reference, idempotency_key)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
 		 ON CONFLICT (tx_hash) DO NOTHING`,
 		tx.ID, nullableString(tx.TxHash), tx.Type, tx.Status,
-		nullableString(tx.FromWallet), nullableString(tx.ToWallet),
+		nullableString(tx.FromWallet), nullableString(tx.ToWallet), nullableString(tx.ToAddress),
 		tx.Asset, tx.Amount.String(), tx.Fee.String(), nullableFeeBps(tx.FeeBps),
 		nullableUUID(tx.TenantID), tx.CreatedAt,
 		tx.RequeueCount, nullableTime(tx.ReconciledAt),
@@ -591,7 +591,7 @@ func (r *TransactionRepo) GetPendingTxesForReconciliation(ctx context.Context, o
 
 	rows, err := dbTx.Query(ctx,
 		`SELECT id, COALESCE(tx_hash,''), type, status,
-		        COALESCE(from_wallet::text,''), COALESCE(to_wallet::text,''),
+		        COALESCE(from_wallet::text,''), COALESCE(to_wallet::text,''), COALESCE(to_address::text,''),
 		        asset, amount, COALESCE(fee,'0'), fee_bps, tenant_id, created_at,
 		        COALESCE(requeue_count, 0), reconciled_at
 		 FROM transactions
@@ -614,7 +614,7 @@ func (r *TransactionRepo) GetPendingTxesForReconciliation(ctx context.Context, o
 		var feeBps *int
 		var tenantID *string
 		if err := rows.Scan(&tx.ID, &tx.TxHash, &tx.Type, &tx.Status,
-			&tx.FromWallet, &tx.ToWallet,
+			&tx.FromWallet, &tx.ToWallet, &tx.ToAddress,
 			&tx.Asset, &amount, &fee, &feeBps, &tenantID, &tx.CreatedAt,
 			&tx.RequeueCount, &tx.ReconciledAt); err != nil {
 			return nil, err
@@ -740,10 +740,10 @@ func (r *TransactionRepo) CreateWithMonthlyLimit(ctx context.Context, tx *domain
 	}
 
 	_, err = dbTx.Exec(ctx,
-		`INSERT INTO transactions (id, tx_hash, type, status, from_wallet, to_wallet, asset, amount, fee, fee_bps, tenant_id, created_at, requeue_count, reconciled_at, batch_id, reference, idempotency_key)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+		`INSERT INTO transactions (id, tx_hash, type, status, from_wallet, to_wallet, to_address, asset, amount, fee, fee_bps, tenant_id, created_at, requeue_count, reconciled_at, batch_id, reference, idempotency_key)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
 		tx.ID, nullableString(tx.TxHash), tx.Type, tx.Status,
-		nullableString(tx.FromWallet), nullableString(tx.ToWallet),
+		nullableString(tx.FromWallet), nullableString(tx.ToWallet), nullableString(tx.ToAddress),
 		tx.Asset, tx.Amount.String(), tx.Fee.String(), nullableFeeBps(tx.FeeBps),
 		nullableUUID(tx.TenantID), tx.CreatedAt,
 		tx.RequeueCount, nullableTime(tx.ReconciledAt),

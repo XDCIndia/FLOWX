@@ -33,6 +33,10 @@ type Transaction struct {
 	Status         TransactionStatus
 	FromWallet     string
 	ToWallet       string
+	// ToAddress is set for external payouts: on-chain transfers whose
+	// destination is a raw blockchain address (0x...) rather than a FlowX
+	// wallet. Mutually exclusive with ToWallet — exactly one is set.
+	ToAddress string
 	Asset          string
 	Amount         decimal.Decimal
 	Fee            decimal.Decimal

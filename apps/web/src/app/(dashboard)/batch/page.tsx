@@ -20,6 +20,10 @@ interface BatchItem {
   reference: string;
 }
 
+// Address destinations (0x… on XDC) are sent as to_address; anything else
+// is treated as a FlowX wallet UUID.
+const isChainAddress = (v: string) => /^(0x|xdc)[0-9a-fA-F]{40}$/.test(v.trim());
+
 export default function BatchPage() {
   
   const { toast } = useToast();
@@ -54,7 +58,14 @@ export default function BatchPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await api.createBatch({ from_wallet_id: fromWalletId, transfers: items });
+      const res = await api.createBatch({
+        from_wallet_id: fromWalletId,
+        transfers: items.map((it) =>
+          isChainAddress(it.to_wallet_id)
+            ? { to_address: it.to_wallet_id.trim(), asset: it.asset, amount: it.amount, reference: it.reference }
+            : { to_wallet_id: it.to_wallet_id, asset: it.asset, amount: it.amount, reference: it.reference }
+        ),
+      });
       setResult(res);
       toast(`Batch ${res.status} — ${res.total_count} transfers`, 'success');
     } catch (err) {
@@ -149,13 +160,13 @@ export default function BatchPage() {
               {items.map((it, idx) => (
                 <div key={idx} className="grid grid-cols-12 gap-2 items-end rounded-lg border border-border p-3">
                   <div className="col-span-5 flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">To Wallet</label>
+                    <label className="text-xs font-medium text-muted-foreground">To (wallet UUID or 0x address)</label>
                     <div className="flex gap-2">
                       <input
                         list={"to-wallets-" + idx}
                         value={it.to_wallet_id}
                         onChange={(e) => updateItem(idx, 'to_wallet_id', e.target.value)}
-                        placeholder="Type or select"
+                        placeholder="UUID or 0x…"
                         required
                         className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                       />
@@ -238,7 +249,7 @@ export default function BatchPage() {
                   {result.transfers.map((t) => (
                     <TableRow key={t.id}>
                       <TableCell className="font-mono text-xs">{t.id.slice(0, 8)}</TableCell>
-                      <TableCell className="font-mono text-xs">{t.to_wallet_id.slice(0, 8)}...</TableCell>
+                      <TableCell className="font-mono text-xs">{(t.to_address || t.to_wallet_id || '').slice(0, 8)}...</TableCell>
                       <TableCell>
                         {t.amount} {t.asset}
                       </TableCell>

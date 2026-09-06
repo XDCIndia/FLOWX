@@ -31,6 +31,27 @@ func (f *fakeTransferSvc) InitiateTransferIdempotent(ctx context.Context, fromID
 	return f.InitiateTransfer(ctx, fromID, toID, asset, amount)
 }
 
+func (f *fakeTransferSvc) InitiatePayout(ctx context.Context, fromID, toAddress, asset string, amount decimal.Decimal) (*domain.Transaction, error) {
+	return f.InitiateBatchPayout(ctx, fromID, toAddress, asset, amount, "", "")
+}
+
+func (f *fakeTransferSvc) InitiatePayoutIdempotent(ctx context.Context, fromID, toAddress, asset string, amount decimal.Decimal, idempotencyKey string) (*domain.Transaction, error) {
+	return f.InitiateBatchPayout(ctx, fromID, toAddress, asset, amount, "", "")
+}
+
+func (f *fakeTransferSvc) InitiateBatchPayout(_ context.Context, fromID, toAddress, asset string, amount decimal.Decimal, batchID, reference string) (*domain.Transaction, error) {
+	return &domain.Transaction{
+		ID:         "payout-" + toAddress,
+		Type:       domain.TypeTransfer,
+		Status:     domain.StatusPending,
+		FromWallet: fromID,
+		ToAddress:  toAddress,
+		Asset:      asset,
+		Amount:     amount,
+		CreatedAt:  time.Now().UTC(),
+	}, nil
+}
+
 func (f *fakeTransferSvc) InitiateBatchTransfer(_ context.Context, fromID, toID, asset string, amount decimal.Decimal, batchID, reference string) (*domain.Transaction, error) {
 	return &domain.Transaction{ID: "tx-1"}, nil
 }

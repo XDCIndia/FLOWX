@@ -15,7 +15,9 @@ import (
 const MaxItems = 100
 
 type Item struct {
+	// Exactly one of ToWalletID / ToAddress per item.
 	ToWalletID string
+	ToAddress  string
 	Asset      string
 	Amount     decimal.Decimal
 	Reference  string
@@ -69,7 +71,13 @@ func (s *service) CreateBatch(ctx context.Context, fromWalletID string, items []
 	// to the batch rather than aborting the remaining items.
 	txs := make([]*domain.Transaction, 0, len(items))
 	for _, item := range items {
-		tx, err := s.transferSvc.InitiateBatchTransfer(ctx, fromWalletID, item.ToWalletID, item.Asset, item.Amount, b.ID, item.Reference)
+		var tx *domain.Transaction
+		var err error
+		if item.ToAddress != "" {
+			tx, err = s.transferSvc.InitiateBatchPayout(ctx, fromWalletID, item.ToAddress, item.Asset, item.Amount, b.ID, item.Reference)
+		} else {
+			tx, err = s.transferSvc.InitiateBatchTransfer(ctx, fromWalletID, item.ToWalletID, item.Asset, item.Amount, b.ID, item.Reference)
+		}
 		if err != nil {
 			tx = &domain.Transaction{
 				ID:         uuid.New().String(),
@@ -77,6 +85,7 @@ func (s *service) CreateBatch(ctx context.Context, fromWalletID string, items []
 				Status:     domain.StatusFailed,
 				FromWallet: fromWalletID,
 				ToWallet:   item.ToWalletID,
+				ToAddress:  item.ToAddress,
 				Asset:      item.Asset,
 				Amount:     item.Amount,
 				BatchID:    &b.ID,

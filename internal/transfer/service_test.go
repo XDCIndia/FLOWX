@@ -24,6 +24,8 @@ func (m *basicMockWalletRepo) GetByID(ctx context.Context, id string) (*domain.W
 	}
 	return w, nil
 }
+func (m *basicMockWalletRepo) Delete(_ context.Context, _ string) error { return nil }
+
 func (m *basicMockWalletRepo) GetByPublicKey(ctx context.Context, pubKey string) (*domain.Wallet, error) {
 	return nil, nil
 }
@@ -100,7 +102,7 @@ func (m *basicMockFeeSvc) CalculateConversionFee(ctx context.Context, orgID, ass
 func (m *basicMockFeeSvc) RecordCollection(ctx context.Context, collection *domain.FeeCollection) error {
 	return nil
 }
-func (m *basicMockFeeSvc) ListCollectedSummary(ctx context.Context, orgID string, since *time.Time) ([]domain.FeeCollectionSummary, error) {
+func (m *basicMockFeeSvc) ListCollectedSummary(ctx context.Context, start, end *time.Time) ([]domain.FeeCollectionSummary, error) {
 	return nil, nil
 }
 
@@ -163,5 +165,52 @@ func TestListTransactions(t *testing.T) {
 
 	if len(txs) != 2 {
 		t.Errorf("expected 2 txs, got %d", len(txs))
+	}
+}
+
+func TestInitiatePayout_Success(t *testing.T) {
+	wr := &basicMockWalletRepo{
+		wallets: map[string]*domain.Wallet{
+			"w1": {ID: "w1", PublicKey: "G1"},
+		},
+	}
+	tr := &basicMockTxRepo{}
+	feeSvc := &basicMockFeeSvc{}
+
+	svc := transfer.NewService(tr, wr, feeSvc, nil)
+
+	addr := "0x8ba1f109551bd432803012645Ac136ddd64DBA72"
+	tx, err := svc.InitiatePayoutIdempotent(context.Background(), "w1", addr, "XLM", decimal.NewFromInt(10), "payout-key-1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if tx.ToAddress != addr {
+		t.Errorf("expected ToAddress %q, got %q", addr, tx.ToAddress)
+	}
+	if tx.ToWallet != "" {
+		t.Errorf("expected empty ToWallet for payout, got %q", tx.ToWallet)
+	}
+	if tx.Status != domain.StatusPending {
+		t.Errorf("expected pending, got %s", tx.Status)
+	}
+	if len(tr.txs) != 1 {
+		t.Errorf("expected transaction to be saved")
+	}
+}
+
+func TestInitiatePayout_InvalidAddress(t *testing.T) {
+	wr := &basicMockWalletRepo{
+		wallets: map[string]*domain.Wallet{
+			"w1": {ID: "w1", PublicKey: "G1"},
+		},
+	}
+	tr := &basicMockTxRepo{}
+	feeSvc := &basicMockFeeSvc{}
+
+	svc := transfer.NewService(tr, wr, feeSvc, nil)
+
+	_, err := svc.InitiatePayout(context.Background(), "w1", "not-an-address", "XLM", decimal.NewFromInt(10))
+	if !errors.Is(err, domain.ErrInvalidDestinationAddress) {
+		t.Errorf("expected ErrInvalidDestinationAddress, got %v", err)
 	}
 }

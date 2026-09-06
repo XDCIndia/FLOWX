@@ -2,11 +2,13 @@ package batch
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/fluxa/fluxa/internal/api"
 	"github.com/fluxa/fluxa/internal/domain"
+	"github.com/fluxa/fluxa/internal/transfer"
 	"github.com/go-chi/chi/v5"
 	"github.com/shopspring/decimal"
 )
@@ -41,10 +43,12 @@ func (h *Handler) Routes() func(r chi.Router) {
 }
 
 type batchItemRequest struct {
-	ToWalletID string `json:"to_wallet_id" validate:"required,uuid"`
+	// Exactly one of ToWalletID / ToAddress per item.
+	ToWalletID string `json:"to_wallet_id" validate:"omitempty,uuid"`
+	ToAddress  string `json:"to_address"   validate:"omitempty"`
 	Asset      string `json:"asset"        validate:"required"`
 	Amount     string `json:"amount"       validate:"required"`
-	Reference  string `json:"reference"`
+	Reference  string `json:"reference"    validate:"omitempty,max=64"`
 }
 
 type createBatchRequest struct {
@@ -54,7 +58,8 @@ type createBatchRequest struct {
 
 type batchTransferResponse struct {
 	ID        string `json:"id"`
-	ToWallet  string `json:"to_wallet_id"`
+	ToWallet  string `json:"to_wallet_id,omitempty"`
+	ToAddress string `json:"to_address,omitempty"`
 	Asset     string `json:"asset"`
 	Amount    string `json:"amount"`
 	Reference string `json:"reference,omitempty"`
@@ -94,6 +99,7 @@ func toBatchResponse(result *Result) batchResponse {
 		resp.Transfers[i] = batchTransferResponse{
 			ID:        tx.ID,
 			ToWallet:  tx.ToWallet,
+			ToAddress: tx.ToAddress,
 			Asset:     tx.Asset,
 			Amount:    tx.Amount.StringFixed(7),
 			Reference: tx.Reference,
@@ -123,8 +129,17 @@ func (h *Handler) createBatch(w http.ResponseWriter, r *http.Request) {
 			api.BadRequest(w, "amount must be a positive number")
 			return
 		}
+		if (t.ToWalletID == "") == (t.ToAddress == "") {
+			api.BadRequest(w, fmt.Sprintf("transfer %d: exactly one of to_wallet_id or to_address is required", i+1))
+			return
+		}
+		if t.ToAddress != "" && !transfer.IsValidDestinationAddress(t.ToAddress) {
+			api.BadRequest(w, fmt.Sprintf("transfer %d: to_address must be a 0x or xdc address of 40 hex characters", i+1))
+			return
+		}
 		items[i] = Item{
 			ToWalletID: t.ToWalletID,
+			ToAddress:  t.ToAddress,
 			Asset:      t.Asset,
 			Amount:     amount,
 			Reference:  t.Reference,

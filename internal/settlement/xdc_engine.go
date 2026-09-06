@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -49,6 +50,13 @@ type XDCEngine struct {
 	chain      *xdc.Client
 	masterKey  []byte
 	feeWallet  string // platform fee wallet — must be a 0x address on XDC
+
+	// walletLocks serializes broadcast per source wallet. The chain client
+	// assigns nonces via PendingNonceAt, so two concurrent settlements from
+	// the same wallet would read the same nonce and race ("replacement
+	// transaction underpriced"). One lock per wallet keeps batch items
+	// sequential at broadcast time while confirmations still overlap.
+	walletLocks sync.Map // walletID -> *sync.Mutex
 }
 
 // NewXDCEngine builds the XDC settlement engine.
@@ -99,9 +107,16 @@ func (e *XDCEngine) SubmitTransfer(ctx context.Context, txID string) error {
 	if err != nil {
 		return fmt.Errorf("load source wallet: %w", err)
 	}
-	dstWallet, err := e.walletRepo.GetByID(ctx, tx.ToWallet)
-	if err != nil {
-		return fmt.Errorf("load destination wallet: %w", err)
+	// Destination: an external payout uses the raw on-chain address carried
+	// on the transaction; a wallet transfer resolves to the wallet's key.
+	dstAddress := tx.ToAddress
+	var dstWallet *domain.Wallet
+	if dstAddress == "" {
+		dstWallet, err = e.walletRepo.GetByID(ctx, tx.ToWallet)
+		if err != nil {
+			return fmt.Errorf("load destination wallet: %w", err)
+		}
+		dstAddress = dstWallet.PublicKey
 	}
 
 	srcSecret, err := e.decryptSecret(srcWallet.EncryptedSecret)
@@ -110,7 +125,15 @@ func (e *XDCEngine) SubmitTransfer(ctx context.Context, txID string) error {
 	}
 
 	netAmount := tx.NetAmount() // whole TXDC units
-	hash, err := e.chain.Transfer(ctx, srcSecret, dstWallet.PublicKey, chain.NativeTXDC, txdcToWeiX(netAmount))
+
+	// Serialize broadcast per source wallet so nonce assignment can't race
+	// between concurrent settlements (e.g. batch items processed in
+	// parallel by multiple workers).
+	lockI, _ := e.walletLocks.LoadOrStore(tx.FromWallet, &sync.Mutex{})
+	walletLock := lockI.(*sync.Mutex)
+	walletLock.Lock()
+	hash, err := e.chain.Transfer(ctx, srcSecret, dstAddress, chain.NativeTXDC, txdcToWeiX(netAmount))
+	walletLock.Unlock()
 	if err != nil {
 		if uErr := e.txRepo.UpdateStatus(ctx, txID, domain.StatusFailed, ""); uErr != nil {
 			log.Error().Err(uErr).Str("tx_id", txID).Msg("xdc settlement: failed to update failed status")
@@ -136,7 +159,9 @@ func (e *XDCEngine) SubmitTransfer(ctx context.Context, txID string) error {
 	}
 
 	e.syncBalance(ctx, srcWallet)
-	e.syncBalance(ctx, dstWallet)
+	if dstWallet != nil {
+		e.syncBalance(ctx, dstWallet)
+	}
 
 	if tx.Fee.GreaterThan(decimal.Zero) {
 		e.collectFee(ctx, tx, txID, srcSecret)

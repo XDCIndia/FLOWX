@@ -2,6 +2,7 @@ package wallet_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,6 +16,20 @@ import (
 )
 
 type fakeContractService struct{}
+
+func (f *fakeContractService) Delete(_ context.Context, _ string) error { return nil }
+
+func (f *fakeContractService) List(_ context.Context) ([]*domain.Wallet, error) {
+	return nil, nil
+}
+
+func (f *fakeContractService) Faucet(_ context.Context, _ string, _ string, _ decimal.Decimal) (*wallet.FaucetResult, error) {
+	return nil, errors.New("not implemented in fake")
+}
+
+func (f *fakeContractService) VerifyDeposit(_ context.Context, _, _ string) (*domain.Transaction, error) {
+	return nil, errors.New("not implemented in fake")
+}
 
 func (f *fakeContractService) CreateWallet(ctx context.Context, ownerPublicKey ...string) (*domain.Wallet, error) {
 	return &domain.Wallet{ID: "w-1"}, nil

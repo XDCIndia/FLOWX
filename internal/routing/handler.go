@@ -2,6 +2,7 @@ package routing
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/fluxa/fluxa/internal/api"
@@ -94,6 +95,10 @@ func (h *Handler) quote(w http.ResponseWriter, r *http.Request) {
 	// Step 1: Collect quotes from all viable routes
 	quotes, err := h.evaluator.Evaluate(r.Context(), paymentReq)
 	if err != nil {
+		if errors.Is(err, ErrNoRoutes) {
+			api.BadRequest(w, err.Error())
+			return
+		}
 		api.HandleDomainError(w, err)
 		return
 	}
@@ -189,6 +194,10 @@ func (h *Handler) send(w http.ResponseWriter, r *http.Request) {
 	// Get quotes
 	quotes, err := h.evaluator.Evaluate(r.Context(), paymentReq)
 	if err != nil {
+		if errors.Is(err, ErrNoRoutes) {
+			api.BadRequest(w, err.Error())
+			return
+		}
 		api.HandleDomainError(w, err)
 		return
 	}

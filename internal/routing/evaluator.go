@@ -2,11 +2,15 @@ package routing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/rs/zerolog/log"
 )
+
+// ErrNoRoutes is returned when no registered route supports the requested pair.
+var ErrNoRoutes = errors.New("no routes available")
 
 // Evaluator collects quotes from all registered routes and returns viable options.
 type Evaluator struct {
@@ -67,7 +71,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, req PaymentRequest) ([]RouteQu
 log.Debug().Int("quotes_count", len(quotes)).Msg("quotes collected")
 
 	if len(quotes) == 0 {
-		return nil, fmt.Errorf("no routes available for %s", pair)
+		return nil, fmt.Errorf("%w for %s", ErrNoRoutes, pair)
 	}
 
 	return quotes, nil

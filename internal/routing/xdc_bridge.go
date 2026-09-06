@@ -8,6 +8,7 @@ import (
 
 	"github.com/fluxa/fluxa/internal/chain"
 	"github.com/fluxa/fluxa/internal/chain/xdc"
+	"github.com/fluxa/fluxa/internal/fx"
 	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
 )
@@ -19,6 +20,7 @@ type XDCBridgeRoute struct {
 	xdcClient   *xdc.Client
 	treasuryKey string // hex-encoded private key
 	recipient   string // demo recipient 0x address
+	fxSvc       fx.Service // live FX rates; static corridor rate is fallback only
 }
 
 type bridgeConfig struct {
@@ -31,11 +33,12 @@ type bridgeConfig struct {
 	description string
 }
 
-func NewXDCBridgeRoute(xdcClient *xdc.Client, treasuryKey string, recipient string) *XDCBridgeRoute {
+func NewXDCBridgeRoute(xdcClient *xdc.Client, treasuryKey string, recipient string, fxSvc fx.Service) *XDCBridgeRoute {
 	return &XDCBridgeRoute{
 		xdcClient:   xdcClient,
 		treasuryKey: treasuryKey,
 		recipient:   recipient,
+		fxSvc:       fxSvc,
 		corridors: map[string]bridgeConfig{
 			"INR-EUR": {
 				gasFee: "0.001 TXDC", rate: 0.01105, spreadBps: 10,
@@ -57,6 +60,16 @@ func NewXDCBridgeRoute(xdcClient *xdc.Client, treasuryKey string, recipient stri
 				feePercent: 0.8, feeAsset: "NGN", settlement: 12 * time.Second,
 				description: "NGN → TXDC on XDC network",
 			},
+			"USDC-TXDC": {
+				gasFee: "0.001 TXDC", rate: 0, spreadBps: 5,
+				feePercent: 0.1, feeAsset: "USDC", settlement: 12 * time.Second,
+				description: "USDC → TXDC swap on XDC network",
+			},
+			"TXDC-USDC": {
+				gasFee: "0.001 TXDC", rate: 0, spreadBps: 5,
+				feePercent: 0.1, feeAsset: "TXDC", settlement: 12 * time.Second,
+				description: "TXDC → USDC swap on XDC network",
+			},
 		},
 	}
 }
@@ -69,7 +82,7 @@ func (r *XDCBridgeRoute) Supports(from, to, _, _ string) bool {
 	return ok
 }
 
-func (r *XDCBridgeRoute) Quote(_ context.Context, from, to string, amount decimal.Decimal) (*RouteQuote, error) {
+func (r *XDCBridgeRoute) Quote(ctx context.Context, from, to string, amount decimal.Decimal) (*RouteQuote, error) {
 	key := from + "-" + to
 	cfg, ok := r.corridors[key]
 	if !ok {
@@ -80,9 +93,23 @@ func (r *XDCBridgeRoute) Quote(_ context.Context, from, to string, amount decima
 	feePct := decimal.NewFromFloat(cfg.feePercent).Div(decimal.NewFromInt(100))
 	fee := amount.Mul(feePct).Round(2)
 
-	// Amount after fee
-	amountAfterFee := amount.Sub(fee)
+	// Prefer a live mid-market rate from the FX service; the static corridor
+	// rate is only a resilience fallback when the FX feed is unreachable.
 	rate := decimal.NewFromFloat(cfg.rate)
+	if r.fxSvc != nil {
+		if resp, err := r.fxSvc.GetRates(ctx, from, to); err == nil && resp.MidMarketRate.GreaterThan(decimal.Zero) {
+			rate = resp.MidMarketRate
+		} else {
+			log.Warn().Err(err).Str("pair", key).
+				Msg("xdc bridge: live FX unavailable, using static corridor rate")
+		}
+	}
+
+	// Amount after fee
+	if rate.IsZero() {
+		return nil, fmt.Errorf("xdc bridge: no rate available for %s", key)
+	}
+	amountAfterFee := amount.Sub(fee)
 	destAmt := amountAfterFee.Mul(rate).Round(2)
 
 	// Effective rate

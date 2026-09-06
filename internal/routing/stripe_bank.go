@@ -57,7 +57,19 @@ func NewStripeBankRoute(stripeKey string, fxSvc fx.Service) *StripeBankRoute {
 			"USDC-NGN": {
 				feePercent: 1.0, fixedFee: 50,
 				settlement: 1 * 24 * time.Hour,
-				feeAsset:   "USDC", rate: 0.000667,
+				feeAsset:   "USDC",
+				paymentTypes: []string{"bank_transfer"},
+			},
+			"INR-USDC": {
+				feePercent: 2.0, fixedFee: 300, // 2% + ₹3
+				settlement: 1 * 24 * time.Hour,
+				feeAsset:   "INR",
+				paymentTypes: []string{"bank_transfer", "card"},
+			},
+			"USDC-INR": {
+				feePercent: 1.2, fixedFee: 20, // 1.2% + $0.20
+				settlement: 1 * 24 * time.Hour,
+				feeAsset:   "USDC",
 				paymentTypes: []string{"bank_transfer"},
 			},
 		},

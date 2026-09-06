@@ -65,12 +65,13 @@ export default function RiskPage() {
         const data = await res.json();
         const reviews = data.reviews || [];
         
-        // Transform to risk assessments
+        // Transform to risk assessments. No invented scores: risk_level comes
+        // from the review status; a review without a score shows 0.
         const riskData: RiskAssessment[] = reviews.map((r: any) => ({
           id: r.id,
           entity_type: 'transfer',
           entity_id: r.transfer_id || r.id,
-          risk_score: r.risk_score || Math.floor(Math.random() * 100),
+          risk_score: typeof r.risk_score === 'number' ? r.risk_score : 0,
           risk_level: r.status === 'hold' ? 'high' : r.status === 'cleared' ? 'low' : 'medium',
           factors: r.reasons || ['velocity_check', 'sanctions_screening'],
           screened_at: r.created_at || new Date().toISOString(),
@@ -90,68 +91,18 @@ export default function RiskPage() {
         };
         setSummary(summary);
       } else {
-        // Generate mock data for demo
-        const mockData: RiskAssessment[] = [
-          {
-            id: '1',
-            entity_type: 'transfer',
-            entity_id: 'TX-001',
-            risk_score: 85,
-            risk_level: 'high',
-            factors: ['velocity_burst', 'round_trip_detected'],
-            screened_at: new Date().toISOString(),
-            status: 'hold',
-          },
-          {
-            id: '2',
-            entity_type: 'transfer',
-            entity_id: 'TX-002',
-            risk_score: 45,
-            risk_level: 'medium',
-            factors: ['high_amount', 'new_wallet'],
-            screened_at: new Date().toISOString(),
-            status: 'cleared',
-          },
-          {
-            id: '3',
-            entity_type: 'transfer',
-            entity_id: 'TX-003',
-            risk_score: 15,
-            risk_level: 'low',
-            factors: ['sanctions_clear', 'velocity_ok'],
-            screened_at: new Date().toISOString(),
-            status: 'cleared',
-          },
-          {
-            id: '4',
-            entity_type: 'wallet',
-            entity_id: 'WL-004',
-            risk_score: 92,
-            risk_level: 'high',
-            factors: ['sanctions_match', 'high_risk_jurisdiction'],
-            screened_at: new Date().toISOString(),
-            status: 'blocked',
-          },
-          {
-            id: '5',
-            entity_type: 'transfer',
-            entity_id: 'TX-005',
-            risk_score: 30,
-            risk_level: 'low',
-            factors: ['known_sender', 'regular_pattern'],
-            screened_at: new Date().toISOString(),
-            status: 'cleared',
-          },
-        ];
-        setAssessments(mockData);
+        // No fabricated data: if the compliance API is unreachable (e.g.
+        // COMPLIANCE_ENABLED=false), show an honest empty state.
+        setAssessments([]);
         setSummary({
-          total_screened: 5,
-          high_risk: 2,
-          medium_risk: 1,
-          low_risk: 2,
-          blocked: 1,
-          pending_review: 1,
+          total_screened: 0,
+          high_risk: 0,
+          medium_risk: 0,
+          low_risk: 0,
+          blocked: 0,
+          pending_review: 0,
         });
+        toast('Compliance screening is not enabled on the API', 'error');
       }
     } catch (err) {
       toast('Failed to load risk data', 'error');
@@ -259,6 +210,16 @@ export default function RiskPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Honest empty state — no fabricated demo rows */}
+      {!loading && summary.total_screened === 0 && (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            No compliance reviews yet. Screenings appear here when the velocity or
+            sanctions rules hold a real transfer for review.
+          </CardContent>
+        </Card>
+      )}
 
       {/* Risk Distribution */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

@@ -325,7 +325,7 @@ export default function RiskPage() {
         </CardHeader>
         <CardContent>
           <Table>
-            <TableHeader>
+            <TableHead>
               <TableRow>
                 <TableHeader>ID</TableHeader>
                 <TableHeader>Type</TableHeader>
@@ -335,7 +335,7 @@ export default function RiskPage() {
                 <TableHeader>Status</TableHeader>
                 <TableHeader>Time</TableHeader>
               </TableRow>
-            </TableHeader>
+            </TableHead>
             <TableBody>
               {assessments.map((assessment) => (
                 <TableRow key={assessment.id}>

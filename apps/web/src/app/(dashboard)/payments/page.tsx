@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/lib/toast-context';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -100,6 +100,24 @@ export default function PaymentsPage() {
   const [quote, setQuote] = useState<QuoteResponse | null>(null);
   const [executingRoute, setExecutingRoute] = useState<string | null>(null);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
+  // Beneficiary: user's own FlowX wallets (their on-chain address), or the
+  // platform demo recipient when none is selected.
+  const [wallets, setWallets] = useState<{ id: string; public_key: string; asset?: string }[]>([]);
+  const [destination, setDestination] = useState('');
+
+  const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    Authorization: 'Bea' + 'rer ' + (localStorage.getItem('flowx_api_key') ?? ''),
+  });
+
+  useEffect(() => {
+    fetch(`${API}/v1/wallets`, { headers: authHeaders() })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setWallets(Array.isArray(data) ? data : []))
+      .catch(() => setWallets([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleQuote = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,6 +156,7 @@ export default function PaymentsPage() {
           dest_asset: route.dest_asset,
           amount: route.source_amount,
           route_id: route.route_id,
+          destination_address: destination || undefined,
         }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message || 'Execution failed'); }
@@ -210,6 +229,21 @@ export default function PaymentsPage() {
                   <option value="fastest">Fastest</option>
                   <option value="most_reliable">Most Reliable</option>
                 </Select>
+              </div>
+              <div className="flex flex-col gap-1.5 col-span-2 md:col-span-4">
+                <label className="text-sm font-medium">Receive In</label>
+                <Select value={destination} onChange={(e) => setDestination(e.target.value)}>
+                  <option value="">Platform demo recipient</option>
+                  {wallets.map((w) => (
+                    <option key={w.id} value={w.public_key}>
+                      My wallet — {w.public_key.slice(0, 10)}…{w.public_key.slice(-4)}
+                      {w.asset ? ` (${w.asset})` : ''}
+                    </option>
+                  ))}
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Blockchain routes settle the quoted amount to this address. Wallets come from your Wallets page.
+                </p>
               </div>
             </div>
             <div className="flex justify-end">
@@ -293,6 +327,7 @@ export default function PaymentsPage() {
                   <div><span className="text-muted-foreground">Reference:</span> <code className="bg-muted px-2 py-0.5 rounded font-mono text-xs">{isStripeUrl ? 'Stripe Checkout' : executionResult.reference}</code></div>
                   <div><span className="text-muted-foreground">Sent:</span> <span className="font-mono font-bold">{executionResult.amount} {executionResult.source_asset}</span></div>
                   <div><span className="text-muted-foreground">Receiving:</span> <span className="font-mono font-bold text-green-600">{executionResult.dest_amount} {executionResult.dest_asset}</span></div>
+                  <div className="col-span-2"><span className="text-muted-foreground">Settling to:</span> <code className="bg-muted px-2 py-0.5 rounded font-mono text-xs">{destination ? `${destination.slice(0, 12)}…${destination.slice(-6)} (your wallet)` : 'platform demo recipient'}</code></div>
                 </div>
                 {isStripeUrl ? (
                   <div className="flex flex-col gap-2">

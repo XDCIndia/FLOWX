@@ -61,6 +61,11 @@ type PaymentRequest struct {
 	SourceRegion  string          `json:"source_region,omitempty"`
 	DestRegion    string          `json:"dest_region,omitempty"`
 	RiskProfile   string          `json:"risk_profile,omitempty"` // "low", "medium", "high"
+
+	// DestinationAddress is the beneficiary's on-chain address (0x/xdc + 40
+	// hex). Routes that settle on-chain pay this address; empty falls back to
+	// the route's configured demo recipient.
+	DestinationAddress string `json:"destination_address,omitempty"`
 }
 
 // PaymentRoute is the interface all routes must implement.

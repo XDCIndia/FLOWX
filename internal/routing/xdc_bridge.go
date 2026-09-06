@@ -149,21 +149,39 @@ func (r *XDCBridgeRoute) Quote(ctx context.Context, from, to string, amount deci
 	}, nil
 }
 
-func (r *XDCBridgeRoute) Execute(ctx context.Context, req PaymentRequest, _ *RouteQuote) (string, error) {
+func (r *XDCBridgeRoute) Execute(ctx context.Context, req PaymentRequest, quote *RouteQuote) (string, error) {
 	key := req.SourceAsset + "-" + req.DestAsset
 	if _, ok := r.corridors[key]; !ok {
 		return "", fmt.Errorf("xdc bridge: unsupported corridor %s", key)
 	}
 
-	// Send real TXDC on Apothem testnet
-	if r.xdcClient != nil && r.treasuryKey != "" && r.recipient != "" {
-		// Send 0.01 TXDC as a demo transfer (covers the payment concept)
-		amountWei := new(big.Int).Mul(big.NewInt(1e16), big.NewInt(1)) // 0.01 TXDC in wei
-		hash, err := r.xdcClient.Transfer(ctx, r.treasuryKey, r.recipient, chain.NativeTXDC, amountWei)
+	// Real on-chain settlement on Apothem: treasury → beneficiary.
+	if r.xdcClient != nil && r.treasuryKey != "" {
+		// Beneficiary: caller-provided destination wins; configured demo
+		// recipient is only the fallback.
+		dest := req.DestinationAddress
+		if dest == "" {
+			dest = r.recipient
+		}
+		if !chainAddressPattern.MatchString(dest) {
+			return "", fmt.Errorf("xdc bridge: invalid destination address %q", dest)
+		}
+
+		// Settle the real quoted amount for TXDC-denominated corridors; other
+		// corridors keep the small symbolic demo transfer (fiat legs settle
+		// off-chain in the full product).
+		amountWei := new(big.Int).Mul(big.NewInt(1e16), big.NewInt(1)) // 0.01 TXDC symbolic
+		if quote != nil && quote.DestAsset == "TXDC" && quote.DestAmount.GreaterThan(decimal.Zero) {
+			amountWei = quote.DestAmount.Shift(18).BigInt()
+		}
+
+		hash, err := r.xdcClient.Transfer(ctx, r.treasuryKey, dest, chain.NativeTXDC, amountWei)
 		if err != nil {
 			log.Warn().Err(err).Msg("xdc bridge: on-chain transfer failed, falling back to reference")
 		} else {
-			log.Info().Str("tx_hash", hash).Str("corridor", key).Msg("xdc bridge: real TXDC transfer submitted")
+			log.Info().Str("tx_hash", hash).Str("corridor", key).
+				Str("dest", dest).Str("amount_wei", amountWei.String()).
+				Msg("xdc bridge: real TXDC transfer submitted")
 			return hash, nil
 		}
 	}

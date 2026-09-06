@@ -9,12 +9,15 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/checkout/session"
+
+	"github.com/fluxa/fluxa/internal/fx"
 )
 
 // StripeBankRoute implements PaymentRoute using Stripe for bank/card payments.
 // Supports fiat→fiat corridors (INR-EUR, EUR-INR, NGN-USDC, etc.)
 type StripeBankRoute struct {
 	stripeKey string
+	fxSvc     fx.Service // live FX rates; nil or fetch failure falls back to cfg.rate
 	corridors map[string]corridorConfig
 }
 
@@ -28,9 +31,10 @@ type corridorConfig struct {
 	paymentTypes []string // "card", "sepa_debit", "bank_transfer"
 }
 
-func NewStripeBankRoute(stripeKey string) *StripeBankRoute {
+func NewStripeBankRoute(stripeKey string, fxSvc fx.Service) *StripeBankRoute {
 	return &StripeBankRoute{
 		stripeKey: stripeKey,
+		fxSvc:     fxSvc,
 		corridors: map[string]corridorConfig{
 			"INR-EUR": {
 				feePercent: 2.0, fixedFee: 300, // 2% + ₹3 (~$0.03)
@@ -68,7 +72,7 @@ func (r *StripeBankRoute) Supports(from, to, _, _ string) bool {
 	return ok
 }
 
-func (r *StripeBankRoute) Quote(_ context.Context, from, to string, amount decimal.Decimal) (*RouteQuote, error) {
+func (r *StripeBankRoute) Quote(ctx context.Context, from, to string, amount decimal.Decimal) (*RouteQuote, error) {
 	key := from + "-" + to
 	cfg, ok := r.corridors[key]
 	if !ok {
@@ -81,9 +85,20 @@ func (r *StripeBankRoute) Quote(_ context.Context, from, to string, amount decim
 	fixedFee := decimal.NewFromInt(cfg.fixedFee).Div(decimal.NewFromInt(100))
 	fee := feeFromAmount.Add(fixedFee).Round(2)
 
+	// Prefer a live mid-market rate from the FX service; the static corridor
+	// rate is only a resilience fallback when the FX feed is unreachable.
+	rate := decimal.NewFromFloat(cfg.rate)
+	if r.fxSvc != nil {
+		if resp, err := r.fxSvc.GetRates(ctx, from, to); err == nil && resp.MidMarketRate.GreaterThan(decimal.Zero) {
+			rate = resp.MidMarketRate
+		} else {
+			log.Warn().Err(err).Str("pair", key).
+				Msg("stripe bank: live FX unavailable, using static corridor rate")
+		}
+	}
+
 	// Calculate destination amount after fee and rate
 	amountAfterFee := amount.Sub(fee)
-	rate := decimal.NewFromFloat(cfg.rate)
 	destAmt := amountAfterFee.Mul(rate).Round(2)
 
 	// Effective rate (including fees)

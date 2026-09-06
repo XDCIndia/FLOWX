@@ -17,6 +17,7 @@ import (
 	"github.com/fluxa/fluxa/internal/fx"
 	"github.com/fluxa/fluxa/internal/org"
 	"github.com/fluxa/fluxa/internal/reconcile"
+	"github.com/fluxa/fluxa/internal/routing"
 	"github.com/fluxa/fluxa/internal/schedule"
 	"github.com/fluxa/fluxa/internal/transfer"
 	"github.com/fluxa/fluxa/internal/treasury"
@@ -85,6 +86,8 @@ func newAuthzTestServerWithValidator(t *testing.T, validator MembershipValidator
 		schedule.NewHandler(nil),
 		treasuryHandler,
 		nil,
+		routing.NewHandler(""),
+		nil, // corsOrigins
 		authzJWTSecret,
 		"0",
 		nil,

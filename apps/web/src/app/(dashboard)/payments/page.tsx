@@ -77,6 +77,19 @@ function SettlementBadge({ time }: { time: string }) {
   return <Badge variant="danger">{time}</Badge>;
 }
 
+function RouteTypeBadge({ routeId }: { routeId: string }) {
+  const id = routeId.toLowerCase();
+  if (id.includes('stripe') || id.includes('bank')) return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Bank</Badge>;
+  if (id.includes('xdc') || id.includes('onchain') || id.includes('bridge') || id.includes('chain')) return <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">Blockchain</Badge>;
+  return <Badge className="bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200">Payment Network</Badge>;
+}
+
+const CORRIDOR_PRESETS = [
+  { label: '🇮🇳 India → Germany 🇩🇪', source: 'INR', dest: 'EUR', amount: '100000' },
+  { label: '🇳🇬 Nigeria → US 🇺🇸', source: 'NGN', dest: 'USDC', amount: '500000' },
+  { label: '🇪🇺 Germany → India 🇮🇳', source: 'EUR', dest: 'INR', amount: '50000' },
+];
+
 export default function PaymentsPage() {
   const { toast } = useToast();
   const [sourceAsset, setSourceAsset] = useState('INR');
@@ -148,6 +161,18 @@ export default function PaymentsPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleQuote} className="flex flex-col gap-4">
+            <div className="flex flex-wrap gap-2">
+              {CORRIDOR_PRESETS.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => { setSourceAsset(p.source); setDestAsset(p.dest); setAmount(p.amount); }}
+                  className="text-xs px-3 py-1.5 rounded-full border border-border hover:bg-muted transition-colors"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium">From</label>
@@ -209,7 +234,13 @@ export default function PaymentsPage() {
               {route.recommended && (<div className="absolute -top-3 right-4"><Badge variant="success" className="flex items-center gap-1"><Trophy className="h-3 w-3" /> Recommended</Badge></div>)}
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
-                  <div><CardTitle className="text-lg">{route.route_name}</CardTitle><p className="text-sm text-muted-foreground mt-1">{route.provider}</p></div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-lg">{route.route_name}</CardTitle>
+                      <RouteTypeBadge routeId={route.route_id} />
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{route.provider}</p>
+                  </div>
                   <div className="text-right"><div className="text-2xl font-bold font-mono">{route.score.toFixed(1)}</div><div className="text-xs text-muted-foreground">/ 100</div></div>
                 </div>
               </CardHeader>
@@ -223,6 +254,7 @@ export default function PaymentsPage() {
                   <ScoreBar label="Cost" score={route.cost_score} icon={Coins} />
                   <ScoreBar label="Speed" score={route.speed_score} icon={Zap} />
                   <ScoreBar label="Reliability" score={route.reliability} icon={Shield} />
+                  <ScoreBar label="Liquidity" score={route.liquidity} icon={Route} />
                   <ScoreBar label="Compliance" score={route.compliance} icon={CheckCircle} />
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">

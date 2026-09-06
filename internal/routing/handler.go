@@ -16,15 +16,12 @@ type Handler struct {
 	checker   ComplianceChecker
 }
 
-// NewHandler creates a routing handler with default components.
+// NewHandler creates a routing handler with an empty evaluator.
+// Routes are registered explicitly by the caller (see cmd/api/main.go)
+// so there is a single source of truth for the live route set.
 func NewHandler(stripeKey string) *Handler {
-	evaluator := NewEvaluator(
-		NewOnChainXDCRoute(),
-		NewFiatNGNRoute(),
-		NewStripeBankRoute(stripeKey),
-	)
 	return &Handler{
-		evaluator: evaluator,
+		evaluator: NewEvaluator(),
 		scorer:    NewScorer(DefaultWeights(), RankingBalanced),
 		checker:   NewDefaultComplianceChecker(),
 	}

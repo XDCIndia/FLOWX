@@ -159,8 +159,13 @@ export default function RiskPage() {
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <PageHeader
-        title="Risk Scoring Dashboard"
-        description="Monitor compliance screening results and risk assessments."
+        title={
+          <span className="inline-flex items-center gap-2">
+            Risk Scoring Dashboard
+            <Badge variant="warning">WIP</Badge>
+          </span>
+        }
+        description="Monitor compliance screening results and risk assessments. Work in progress — screening is live, dashboarding is being extended."
       >
         <Button variant="secondary" onClick={fetchRiskData}>
           <RefreshCw className="h-4 w-4 mr-2" />

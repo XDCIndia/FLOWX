@@ -21,6 +21,8 @@ func (m *mockRepo) Create(ctx context.Context, w *domain.Wallet) error {
 func (m *mockRepo) GetByID(ctx context.Context, id string) (*domain.Wallet, error) {
 	return &domain.Wallet{ID: id}, nil
 }
+func (m *mockRepo) Delete(_ context.Context, _ string) error { return nil }
+
 func (m *mockRepo) GetByPublicKey(ctx context.Context, pubKey string) (*domain.Wallet, error) {
 	return nil, nil
 }

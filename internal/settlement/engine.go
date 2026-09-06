@@ -78,6 +78,16 @@ func (e *Engine) SubmitTransfer(ctx context.Context, txID string) error {
 		return fmt.Errorf("claim transaction for submission: %w", err)
 	}
 
+	// External payouts (raw on-chain destinations) are only supported on the
+	// XDC backend. On Stellar there is no FlowX wallet to attach the payout
+	// to, so fail the transfer explicitly rather than mis-settle.
+	if tx.ToAddress != "" {
+		if uErr := e.txRepo.UpdateStatus(ctx, txID, domain.StatusFailed, ""); uErr != nil {
+			log.Error().Err(uErr).Str("tx_id", txID).Msg("settlement: failed to record unsupported payout failure")
+		}
+		return fmt.Errorf("external payout to %s is not supported on the Stellar settlement backend", tx.ToAddress)
+	}
+
 	srcWallet, err := e.walletRepo.GetByID(ctx, tx.FromWallet)
 	if err != nil {
 		return fmt.Errorf("load source wallet: %w", err)

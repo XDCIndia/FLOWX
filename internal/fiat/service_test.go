@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/fluxa/fluxa/internal/chain/xdc"
 	"github.com/fluxa/fluxa/internal/domain"
 	"github.com/fluxa/fluxa/internal/fx"
 	"github.com/fluxa/fluxa/internal/stellar"
@@ -147,6 +148,8 @@ type mockFXService struct {
 	err   error
 }
 
+func (m *mockFXService) WithXDC(_ *xdc.Client, _ string) fx.Service { return m }
+
 func (m *mockFXService) GetQuote(ctx context.Context, fromAsset, toAsset, amount string) (*fx.Quote, error) {
 	if m.err != nil {
 		return nil, m.err
@@ -189,6 +192,18 @@ func (m *mockTransferService) InitiateTransfer(ctx context.Context, fromID, toID
 
 func (m *mockTransferService) InitiateTransferIdempotent(ctx context.Context, fromID, toID, asset string, amount decimal.Decimal, idempotencyKey string) (*domain.Transaction, error) {
 	return nil, nil
+}
+
+func (m *mockTransferService) InitiatePayout(_ context.Context, _, _, _ string, _ decimal.Decimal) (*domain.Transaction, error) {
+	return nil, errors.New("not implemented in mock")
+}
+
+func (m *mockTransferService) InitiatePayoutIdempotent(_ context.Context, _, _, _ string, _ decimal.Decimal, _ string) (*domain.Transaction, error) {
+	return nil, errors.New("not implemented in mock")
+}
+
+func (m *mockTransferService) InitiateBatchPayout(_ context.Context, _, _, _ string, _ decimal.Decimal, _, _ string) (*domain.Transaction, error) {
+	return nil, errors.New("not implemented in mock")
 }
 
 func (m *mockTransferService) InitiateBatchTransfer(ctx context.Context, fromID, toID, asset string, amount decimal.Decimal, batchID, reference string) (*domain.Transaction, error) {

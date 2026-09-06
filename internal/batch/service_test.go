@@ -110,6 +110,27 @@ func (f *fakeTransferSvc) InitiateTransferIdempotent(ctx context.Context, fromID
 	return f.InitiateTransfer(ctx, fromID, toID, asset, amount)
 }
 
+func (f *fakeTransferSvc) InitiatePayout(ctx context.Context, fromID, toAddress, asset string, amount decimal.Decimal) (*domain.Transaction, error) {
+	return f.InitiateBatchPayout(ctx, fromID, toAddress, asset, amount, "", "")
+}
+
+func (f *fakeTransferSvc) InitiatePayoutIdempotent(ctx context.Context, fromID, toAddress, asset string, amount decimal.Decimal, idempotencyKey string) (*domain.Transaction, error) {
+	return f.InitiateBatchPayout(ctx, fromID, toAddress, asset, amount, "", "")
+}
+
+func (f *fakeTransferSvc) InitiateBatchPayout(_ context.Context, fromID, toAddress, asset string, amount decimal.Decimal, batchID, reference string) (*domain.Transaction, error) {
+	return &domain.Transaction{
+		ID:         uuid.New().String(),
+		Type:       domain.TypeTransfer,
+		Status:     domain.StatusPending,
+		FromWallet: fromID,
+		ToAddress:  toAddress,
+		Asset:      asset,
+		Amount:     amount,
+		CreatedAt:  time.Now().UTC(),
+	}, nil
+}
+
 func (f *fakeTransferSvc) InitiateBatchTransfer(ctx context.Context, fromID, toID, asset string, amount decimal.Decimal, batchID, reference string) (*domain.Transaction, error) {
 	f.calls++
 	if f.failOn[toID] {
@@ -290,7 +311,7 @@ func TestExportCSV_IncludesStatusTxHashAndReference(t *testing.T) {
 	}
 
 	lines := strings.Split(strings.TrimSpace(csv), "\n")
-	if lines[0] != "to_wallet,asset,amount,reference,status,tx_hash" {
+	if lines[0] != "to_wallet,to_address,asset,amount,reference,status,tx_hash" {
 		t.Fatalf("header = %q", lines[0])
 	}
 	if len(lines) != 3 {

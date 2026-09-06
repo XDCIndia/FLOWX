@@ -8,9 +8,11 @@ import (
 
 func toCSV(txs []*domain.Transaction) string {
 	var sb strings.Builder
-	sb.WriteString("to_wallet,asset,amount,reference,status,tx_hash\n")
+	sb.WriteString("to_wallet,to_address,asset,amount,reference,status,tx_hash\n")
 	for _, tx := range txs {
 		sb.WriteString(csvField(tx.ToWallet))
+		sb.WriteByte(',')
+		sb.WriteString(csvField(tx.ToAddress))
 		sb.WriteByte(',')
 		sb.WriteString(csvField(tx.Asset))
 		sb.WriteByte(',')

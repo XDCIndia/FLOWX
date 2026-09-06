@@ -11,6 +11,7 @@ var (
 	ErrSlippageExceeded             = errors.New("slippage tolerance exceeded")
 	ErrInvalidAsset                 = errors.New("invalid or unsupported asset")
 	ErrSelfTransfer                 = errors.New("source and destination wallets must differ")
+	ErrInvalidDestinationAddress    = errors.New("invalid destination address")
 	ErrFeeScheduleNotFound          = errors.New("fee schedule not found")
 	ErrReconciliationFailed         = errors.New("reconciliation check failed")
 	ErrWebhookNotFound              = errors.New("webhook endpoint not found")

@@ -113,7 +113,7 @@ func TestHandleWebhook_MockSecret_BypassesSignatureCheck(t *testing.T) {
 // ─── status handling ─────────────────────────────────────────────────────────
 
 func TestHandleWebhook_SuccessfulStatus_MapsToCompleted(t *testing.T) {
-	p := NewProvider("mock", "secret")
+	p := NewProvider("mock", "secret", "")
 	payload := chargeCompletedPayload("REF-1", "successful", "100", "NGN")
 
 	evt, err := p.HandleWebhook(nil, []byte(payload), headersWithSignature("secret"))
@@ -126,7 +126,7 @@ func TestHandleWebhook_SuccessfulStatus_MapsToCompleted(t *testing.T) {
 }
 
 func TestHandleWebhook_FailedStatus_MapsToFailed(t *testing.T) {
-	p := NewProvider("mock", "secret")
+	p := NewProvider("mock", "secret", "")
 	payload := chargeCompletedPayload("REF-1", "failed", "100", "NGN")
 
 	evt, err := p.HandleWebhook(nil, []byte(payload), headersWithSignature("secret"))
@@ -143,7 +143,7 @@ func TestHandleWebhook_PendingStatus_Rejected(t *testing.T) {
 	// or failed outcome — the previous implementation defaulted anything
 	// that wasn't "successful" to "failed", which would have prematurely
 	// marked an in-flight deposit as failed.
-	p := NewProvider("mock", "secret")
+	p := NewProvider("mock", "secret", "")
 	payload := chargeCompletedPayload("REF-1", "pending", "100", "NGN")
 
 	_, err := p.HandleWebhook(nil, []byte(payload), headersWithSignature("secret"))
@@ -153,7 +153,7 @@ func TestHandleWebhook_PendingStatus_Rejected(t *testing.T) {
 }
 
 func TestHandleWebhook_UnknownStatus_Rejected(t *testing.T) {
-	p := NewProvider("mock", "secret")
+	p := NewProvider("mock", "secret", "")
 	payload := chargeCompletedPayload("REF-1", "some-new-status-flutterwave-added", "100", "NGN")
 
 	_, err := p.HandleWebhook(nil, []byte(payload), headersWithSignature("secret"))
@@ -163,7 +163,7 @@ func TestHandleWebhook_UnknownStatus_Rejected(t *testing.T) {
 }
 
 func TestHandleWebhook_MissingReference_Rejected(t *testing.T) {
-	p := NewProvider("mock", "secret")
+	p := NewProvider("mock", "secret", "")
 	payload := `{"event":"charge.completed","data":{"id":1,"status":"successful","amount":100,"currency":"NGN"}}`
 
 	_, err := p.HandleWebhook(nil, []byte(payload), headersWithSignature("secret"))
@@ -181,7 +181,7 @@ func TestHandleWebhook_ReplayedPayload_ParsesIdenticallyBothTimes(t *testing.T) 
 	// is that a replayed (byte-identical) delivery with a valid signature
 	// keeps parsing to the same event deterministically, in particular the
 	// same EventID, so the caller has a stable identity to dedupe on.
-	p := NewProvider("mock", "secret")
+	p := NewProvider("mock", "secret", "")
 	payload := chargeCompletedPayload("REF-1", "successful", "100", "NGN")
 	headers := headersWithSignature("secret")
 
@@ -200,7 +200,7 @@ func TestHandleWebhook_ReplayedPayload_ParsesIdenticallyBothTimes(t *testing.T) 
 }
 
 func TestHandleWebhook_EventType(t *testing.T) {
-	p := NewProvider("mock", "secret")
+	p := NewProvider("mock", "secret", "")
 	payload := chargeCompletedPayload("REF-1", "successful", "100", "NGN")
 
 	evt, err := p.HandleWebhook(nil, []byte(payload), headersWithSignature("secret"))

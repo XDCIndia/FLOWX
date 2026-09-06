@@ -28,6 +28,8 @@ func (m *mockWalletRepo) GetByID(ctx context.Context, id string) (*domain.Wallet
 	}
 	return w, nil
 }
+func (m *mockWalletRepo) Delete(_ context.Context, _ string) error { return nil }
+
 func (m *mockWalletRepo) GetByPublicKey(ctx context.Context, pubKey string) (*domain.Wallet, error) {
 	return nil, nil
 }

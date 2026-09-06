@@ -247,7 +247,8 @@ export interface RateResponse {
 
 // --- Batch ---
 export interface BatchItemRequest {
-  to_wallet_id: string;
+  to_wallet_id?: string;
+  to_address?: string;
   asset: string;
   amount: string;
   reference?: string;
@@ -267,7 +268,8 @@ export interface BatchResponse {
   created_at: string;
   transfers?: Array<{
     id: string;
-    to_wallet_id: string;
+    to_wallet_id?: string;
+    to_address?: string;
     asset: string;
     amount: string;
     reference?: string;

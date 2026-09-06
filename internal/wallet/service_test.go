@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/fluxa/fluxa/internal/domain"
 	"github.com/fluxa/fluxa/internal/wallet"
@@ -26,6 +25,8 @@ func (m *basicMockWalletRepo) GetByID(ctx context.Context, id string) (*domain.W
 	}
 	return w, nil
 }
+func (m *basicMockWalletRepo) Delete(_ context.Context, _ string) error { return nil }
+
 func (m *basicMockWalletRepo) GetByPublicKey(ctx context.Context, pubKey string) (*domain.Wallet, error) {
 	return nil, nil
 }

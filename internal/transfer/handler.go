@@ -47,9 +47,12 @@ func (h *Handler) TransactionRoutes() func(r chi.Router) {
 
 type createTransferRequest struct {
 	FromWalletID string `json:"from_wallet_id" validate:"required,uuid"`
-	ToWalletID   string `json:"to_wallet_id"   validate:"required,uuid"`
-	Asset        string `json:"asset"          validate:"required"`
-	Amount       string `json:"amount"         validate:"required"`
+	// Exactly one of ToWalletID / ToAddress must be set: a FlowX wallet
+	// UUID, or a raw on-chain address (0x…/xdc…) for external payouts.
+	ToWalletID string `json:"to_wallet_id" validate:"omitempty,uuid"`
+	ToAddress  string `json:"to_address"   validate:"omitempty"`
+	Asset      string `json:"asset"        validate:"required"`
+	Amount     string `json:"amount"       validate:"required"`
 }
 
 type transferResponse struct {
@@ -58,7 +61,8 @@ type transferResponse struct {
 	Type       string `json:"type"`
 	Status     string `json:"status"`
 	FromWallet string `json:"from_wallet_id"`
-	ToWallet   string `json:"to_wallet_id"`
+	ToWallet   string `json:"to_wallet_id,omitempty"`
+	ToAddress  string `json:"to_address,omitempty"`
 	Asset      string `json:"asset"`
 	Amount     string `json:"amount"`
 	FeeAmount  string `json:"fee_amount"`
@@ -75,6 +79,7 @@ func toTransferResponse(tx *domain.Transaction) transferResponse {
 		Status:     string(tx.Status),
 		FromWallet: tx.FromWallet,
 		ToWallet:   tx.ToWallet,
+		ToAddress:  tx.ToAddress,
 		Asset:      tx.Asset,
 		Amount:     tx.Amount.StringFixed(7),
 		FeeAmount:  tx.Fee.StringFixed(7),
@@ -94,6 +99,14 @@ func (h *Handler) initiateTransfer(w http.ResponseWriter, r *http.Request) {
 		api.BadRequest(w, err.Error())
 		return
 	}
+	if (req.ToWalletID == "") == (req.ToAddress == "") {
+		api.BadRequest(w, "exactly one of to_wallet_id or to_address is required")
+		return
+	}
+	if req.ToAddress != "" && !IsValidDestinationAddress(req.ToAddress) {
+		api.BadRequest(w, "to_address must be a 0x or xdc address of 40 hex characters")
+		return
+	}
 
 	amount, err := decimal.NewFromString(req.Amount)
 	if err != nil || amount.LessThanOrEqual(decimal.Zero) {
@@ -101,7 +114,12 @@ func (h *Handler) initiateTransfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx, err := h.svc.InitiateTransferIdempotent(r.Context(), req.FromWalletID, req.ToWalletID, req.Asset, amount, r.Header.Get("Idempotency-Key"))
+	var tx *domain.Transaction
+	if req.ToAddress != "" {
+		tx, err = h.svc.InitiatePayoutIdempotent(r.Context(), req.FromWalletID, req.ToAddress, req.Asset, amount, r.Header.Get("Idempotency-Key"))
+	} else {
+		tx, err = h.svc.InitiateTransferIdempotent(r.Context(), req.FromWalletID, req.ToWalletID, req.Asset, amount, r.Header.Get("Idempotency-Key"))
+	}
 	if err != nil {
 		api.HandleDomainError(w, err)
 		return

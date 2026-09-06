@@ -21,7 +21,14 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 
-const navItems = [
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  wip?: boolean;
+}
+
+const navItems: NavItem[] = [
   { name: 'Overview', href: '/overview', icon: LayoutDashboard },
   { name: 'Wallets', href: '/wallets', icon: Wallet },
   { name: 'Transfers', href: '/transfers', icon: ArrowLeftRight },
@@ -34,7 +41,7 @@ const navItems = [
   { name: 'API Keys', href: '/api-keys', icon: KeyRound },
   { name: 'Webhooks', href: '/webhooks', icon: Webhook },
   { name: 'Usage', href: '/usage', icon: BarChart3 },
-  { name: 'Risk', href: '/risk', icon: Shield },
+  { name: 'Risk', href: '/risk', icon: Shield, wip: true },
   { name: 'Team', href: '/team', icon: Users },
 ];
 
@@ -88,6 +95,11 @@ export default function Sidebar() {
                 )}
               />
               {item.name}
+              {item.wip && (
+                <span className="ml-auto rounded bg-warning-subtle px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warning">
+                  WIP
+                </span>
+              )}
             </Link>
           );
         })}

@@ -22,6 +22,7 @@ import (
 	"github.com/fluxa/fluxa/internal/postgres"
 	"github.com/fluxa/fluxa/internal/reconcile"
 	"github.com/fluxa/fluxa/internal/schedule"
+	"github.com/fluxa/fluxa/internal/tenant"
 	"github.com/fluxa/fluxa/internal/transfer"
 	"github.com/fluxa/fluxa/internal/treasury"
 	"github.com/fluxa/fluxa/internal/wallet"
@@ -48,6 +49,7 @@ func New(
 	reconcileHandler *reconcile.Handler,
 	apikeyHandler *apikey.Handler,
 	apiKeyRepo *postgres.APIKeyRepo,
+	txRepo *postgres.TransactionRepo,
 	webhookHandler *webhook.Handler,
 	batchHandler *batch.Handler,
 	scheduleHandler *schedule.Handler,
@@ -103,13 +105,18 @@ func New(
 			r.Use(RateLimit(100, 200))
 
 			r.Get("/usage", func(w http.ResponseWriter, r *http.Request) {
+				tid := tenant.IDFromContext(r.Context())
+				count, volume, err := txRepo.UsageSummary(r.Context(), tid)
+				if err != nil {
+					http.Error(w, "failed to fetch usage", http.StatusInternalServerError)
+					return
+				}
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(map[string]interface{}{
-					"request_count":   0,
-					"transfer_volume": "0",
+					"request_count":   count,
+					"transfer_volume": volume,
 					"rate_limit":      100,
 					"period":          "current",
-					"note":            "derived on client — backend usage aggregation not yet implemented",
 				})
 			})
 

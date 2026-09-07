@@ -36,4 +36,8 @@ type Repository interface {
 	// GetByIdempotencyKey returns the transaction previously created for this
 	// org/idempotency-key pair, or domain.ErrTransactionNotFound if none exists.
 	GetByIdempotencyKey(ctx context.Context, orgID, idempotencyKey string) (*domain.Transaction, error)
+
+	// UsageSummary returns the total transaction count and transfer volume
+	// for a tenant. Used by the /v1/usage endpoint.
+	UsageSummary(ctx context.Context, tenantID string) (count int, volume string, err error)
 }

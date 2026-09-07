@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fluxa/fluxa/internal/assets"
 	"github.com/fluxa/fluxa/internal/domain"
 	"github.com/fluxa/fluxa/internal/fees"
 	"github.com/fluxa/fluxa/internal/queue"
@@ -153,7 +154,7 @@ func (s *service) initiate(ctx context.Context, fromID, toID, toAddress, asset s
 
 	// Validate trustline on source wallet for non-native assets. XLM (Stellar)
 	// and TXDC/XDC (XDC backend) are native assets — they have no trustline.
-	if !isNativeAssetCode(asset) {
+	if !assets.IsNativeAsset(asset) {
 		if err := s.validateTrustline(ctx, fromID, srcWallet.PublicKey, asset); err != nil {
 			return nil, err
 		}
@@ -315,10 +316,4 @@ func (s *service) ListTransactions(ctx context.Context, walletID string, limit, 
 		limit = 20
 	}
 	return s.repo.ListByWallet(ctx, walletID, limit, offset)
-}
-
-// isNativeAssetCode reports whether an asset code is a chain-native asset
-// that requires no trustline: XLM on Stellar, TXDC/XDC on the XDC backend.
-func isNativeAssetCode(asset string) bool {
-	return asset == "XLM" || asset == "TXDC" || asset == "XDC"
 }

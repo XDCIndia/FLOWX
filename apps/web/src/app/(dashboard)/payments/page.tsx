@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Route, Trophy, Clock, Shield, Coins, Zap, AlertTriangle, CheckCircle } from 'lucide-react';
+import { txExplorerUrl } from '@/lib/explorer';
 
 interface RouteOption {
   route_id: string;
@@ -343,7 +344,7 @@ export default function PaymentsPage() {
                   <div className="flex items-center gap-2 text-xs text-success bg-success/10 rounded-lg p-3">
                     <CheckCircle className="h-4 w-4" />
                     Payment completed on XDC blockchain!
-                    <a href={`https://testnet.xdcscan.com/tx/${executionResult.reference}`} target="_blank" rel="noopener noreferrer" className="underline">
+                    <a href={txExplorerUrl(executionResult.reference)} target="_blank" rel="noopener noreferrer" className="underline">
                       View on Explorer
                     </a>
                   </div>

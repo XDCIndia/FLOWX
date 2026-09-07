@@ -402,7 +402,7 @@ func main() {
 	srv := server.New(
 		authHandler, orgHandler, walletHandler, transferHandler, fxHandler, fiatHandler,
 		anchorFiatHandler, anchorHandler,
-		feeHandler, reconcileHandler, apikeyHandler, apiKeyRepo,
+		feeHandler, reconcileHandler, apikeyHandler, apiKeyRepo, txRepo,
 		webhookHandler, batchHandler, scheduleHandler, treasuryHandler, complianceHandler, routingHandler, cfg.CORSOrigins, jwtSecretBytes, cfg.Port,
 		map[string]server.DependencyCheck{
 			"postgres": db.Ping,

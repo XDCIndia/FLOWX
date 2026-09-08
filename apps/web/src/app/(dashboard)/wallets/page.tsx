@@ -247,8 +247,7 @@ export default function WalletsPage() {
 
                 <div className="flex flex-wrap items-center gap-2">
                   <a
-                    href={wallet.public_key.startsWith('0x') || wallet.public_key.toLowerCase().startsWith('xdc')
-                      {accountExplorerUrl(wallet.public_key)}}
+                    href={accountExplorerUrl(wallet.public_key)}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary-hover hover:underline"

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/api";
 import { useToast } from "@/lib/toast-context";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -182,9 +183,9 @@ export default function LoginPage() {
           )}
 
           <p className="mt-5 text-center text-xs text-muted-foreground">
-            <a href="/" className="underline hover:text-foreground">
+            <Link href="/" className="underline hover:text-foreground">
               Back to FlowX
-            </a>
+            </Link>
           </p>
         </CardContent>
       </Card>

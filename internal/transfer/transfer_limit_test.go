@@ -71,6 +71,9 @@ func (m *limitMockTxRepo) ExistsByTxHash(_ context.Context, _ string) (bool, err
 func (m *limitMockTxRepo) GetByIdempotencyKey(_ context.Context, _, _ string) (*domain.Transaction, error) {
 	return nil, domain.ErrTransactionNotFound
 }
+func (m *limitMockTxRepo) UsageSummary(_ context.Context, _ string) (int, string, error) {
+	return 0, "0", nil
+}
 
 type limitMockWalletRepo struct{}
 

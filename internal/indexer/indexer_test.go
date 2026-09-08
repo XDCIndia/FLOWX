@@ -137,6 +137,9 @@ func (f *fakeTransferRepo) UpsertByTxHash(_ context.Context, tx *domain.Transact
 	f.existing[tx.TxHash] = true
 	return nil
 }
+func (f *fakeTransferRepo) UsageSummary(_ context.Context, _ string) (int, string, error) {
+	return 0, "0", nil
+}
 
 type fakeStellarClient struct {
 	loadAccount    func(accountID string) (horizon.Account, error)

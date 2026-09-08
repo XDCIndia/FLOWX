@@ -82,6 +82,9 @@ func (m *mockTxRepo) CountMonthlyTransfersByTenant(ctx context.Context, tenantID
 func (m *mockTxRepo) ListByBatch(ctx context.Context, batchID string) ([]*domain.Transaction, error) {
 	return nil, nil
 }
+func (m *mockTxRepo) UsageSummary(_ context.Context, _ string) (int, string, error) {
+	return 0, "0", nil
+}
 
 type mockStellarClient struct {
 	balances []horizon.Balance

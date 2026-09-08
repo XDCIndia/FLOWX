@@ -83,6 +83,9 @@ func (m *basicMockTxRepo) ListByBatch(ctx context.Context, batchID string) ([]*d
 func (m *basicMockTxRepo) CountMonthlyTransfersByTenant(ctx context.Context, tenantID string, year int, month time.Month) (int, error) {
 	return 0, nil
 }
+func (m *basicMockTxRepo) UsageSummary(_ context.Context, _ string) (int, string, error) {
+	return 0, "0", nil
+}
 
 type basicMockFeeSvc struct{}
 

@@ -758,3 +758,19 @@ func (r *TransactionRepo) CreateWithMonthlyLimit(ctx context.Context, tx *domain
 	}
 	return nil
 }
+
+// UsageSummary returns the total transaction count and transfer volume for a
+// tenant. When tenantID is empty, it returns platform-wide totals.
+func (r *TransactionRepo) UsageSummary(ctx context.Context, tenantID string) (count int, volume string, err error) {
+	query := `SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM transactions`
+	args := []interface{}{}
+	if tenantID != "" {
+		query += ` WHERE tenant_id = `
+		args = append(args, tenantID)
+	}
+	err = r.db.QueryRow(ctx, query, args...).Scan(&count, &volume)
+	if err != nil {
+		return 0, "0", fmt.Errorf("usage summary: %w", err)
+	}
+	return count, volume, nil
+}

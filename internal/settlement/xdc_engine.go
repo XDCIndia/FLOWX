@@ -14,6 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
 
+	"github.com/fluxa/fluxa/internal/assets"
 	"github.com/fluxa/fluxa/internal/chain"
 	"github.com/fluxa/fluxa/internal/chain/xdc"
 	"github.com/fluxa/fluxa/internal/crypto"
@@ -96,7 +97,7 @@ func (e *XDCEngine) SubmitTransfer(ctx context.Context, txID string) error {
 		return fmt.Errorf("claim transaction for submission: %w", err)
 	}
 
-	if !isNativeAsset(tx.Asset) {
+	if !assets.IsNativeAsset(tx.Asset) {
 		if err := e.txRepo.UpdateStatus(ctx, txID, domain.StatusFailed, ""); err != nil {
 			log.Error().Err(err).Str("tx_id", txID).Msg("xdc settlement: failed to update failed status")
 		}
@@ -224,11 +225,6 @@ func (e *XDCEngine) decryptSecret(encryptedHex string) (string, error) {
 		return "", fmt.Errorf("decrypt wallet secret: %w", err)
 	}
 	return string(secretBytes), nil
-}
-
-// isNativeAsset reports whether an asset code is the chain-native asset.
-func isNativeAsset(code string) bool {
-	return code == "" || code == "TXDC" || code == "XDC" || code == "XLM"
 }
 
 func txdcToWeiX(d decimal.Decimal) *big.Int {

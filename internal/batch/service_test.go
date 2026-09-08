@@ -92,6 +92,9 @@ func (f *fakeTxRepo) ExistsByTxHash(_ context.Context, txHash string) (bool, err
 func (f *fakeTxRepo) CountMonthlyTransfersByTenant(ctx context.Context, tenantID string, year int, month time.Month) (int, error) {
 	return 0, nil
 }
+func (f *fakeTxRepo) UsageSummary(_ context.Context, _ string) (int, string, error) {
+	return 0, "0", nil
+}
 
 // fakeTransferSvc implements transfer.Service. It simulates the settlement
 // worker having already confirmed each transfer synchronously, except for

@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
 
+	"github.com/fluxa/fluxa/internal/assets"
 	"github.com/fluxa/fluxa/internal/chain"
 	"github.com/fluxa/fluxa/internal/chain/xdc"
 	"github.com/fluxa/fluxa/internal/crypto"
@@ -281,7 +282,7 @@ func (s *XDCService) ExecuteTransfer(
 	if err != nil {
 		return "", err
 	}
-	if !isNativeTXDC(assetCode) {
+	if !assets.IsNativeAsset(assetCode) {
 		return "", fmt.Errorf("%w: asset %s is not supported on the XDC backend yet (native TXDC only)", domain.ErrInvalidAsset, assetCode)
 	}
 
@@ -312,12 +313,6 @@ func (s *XDCService) List(ctx context.Context) ([]*domain.Wallet, error) {
 
 func (s *XDCService) Delete(ctx context.Context, walletID string) error {
 	return s.repo.Delete(ctx, walletID)
-}
-
-
-// isNativeTXDC reports whether an asset code refers to the XDC native asset.
-func isNativeTXDC(code string) bool {
-	return code == "" || code == "TXDC" || code == "XDC"
 }
 
 // txdcToWei converts whole-unit TXDC decimal to base units (1e18).

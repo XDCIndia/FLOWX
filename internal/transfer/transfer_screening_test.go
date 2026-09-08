@@ -74,6 +74,9 @@ func (m *screeningMockTxRepo) ExistsByTxHash(_ context.Context, _ string) (bool,
 func (m *screeningMockTxRepo) GetByIdempotencyKey(_ context.Context, _, _ string) (*domain.Transaction, error) {
 	return nil, domain.ErrTransactionNotFound
 }
+func (m *screeningMockTxRepo) UsageSummary(_ context.Context, _ string) (int, string, error) {
+	return 0, "0", nil
+}
 
 func (m *screeningMockTxRepo) createdCount() int {
 	m.mu.Lock()

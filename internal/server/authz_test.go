@@ -80,7 +80,8 @@ func newAuthzTestServerWithValidator(t *testing.T, validator MembershipValidator
 		fees.NewHandler(nil),
 		reconcile.NewHandler(nil),
 		apikey.NewHandler(nil),
-		nil,
+		nil, // apiKeyRepo
+		nil, // txRepo
 		webhook.NewHandler(nil),
 		batch.NewHandler(nil),
 		schedule.NewHandler(nil),

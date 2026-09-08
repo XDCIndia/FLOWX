@@ -161,6 +161,9 @@ func (f *fakeTxRepo) ExistsByTxHash(_ context.Context, _ string) (bool, error) {
 func (f *fakeTxRepo) GetByIdempotencyKey(_ context.Context, _, _ string) (*domain.Transaction, error) {
 	return nil, domain.ErrTransactionNotFound
 }
+func (f *fakeTxRepo) UsageSummary(_ context.Context, _ string) (int, string, error) {
+	return 0, "0", nil
+}
 
 func (f *fakeTxRepo) status(id string) domain.TransactionStatus {
 	f.mu.Lock()

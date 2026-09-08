@@ -53,3 +53,15 @@ func (r *Registry) IsSupported(code string) bool {
 	_, ok := r.assets[strings.ToUpper(code)]
 	return ok
 }
+// IsNativeAsset reports whether an asset code refers to a chain-native asset
+// that requires no trustline and has no issuer: XLM on Stellar, TXDC/XDC on
+// XDC. An empty string is also treated as native (the zero-value asset code
+// convention used in some DB rows).
+func IsNativeAsset(code string) bool {
+	switch code {
+	case "", "XLM", "TXDC", "XDC":
+		return true
+	default:
+		return false
+	}
+}

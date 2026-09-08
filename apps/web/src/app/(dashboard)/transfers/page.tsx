@@ -21,6 +21,7 @@ import {
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowRightLeft, ExternalLink, Plus, X, Download, Copy } from 'lucide-react';
+import { txExplorerUrl, accountExplorerUrl, explorerName } from '@/lib/explorer';
 
 function statusBadge(status: string) {
   if (status === 'confirmed') return <Badge variant="success">{status}</Badge>;
@@ -292,7 +293,7 @@ export default function TransfersPage() {
                     The transfer will appear here once confirmed on the XDC network.
                   </p>
                   <a
-                    href={`https://testnet.xdcscan.com/address/${toDisplayAddress(wallets.get(receiveWallet)!.public_key)}`}
+                    href={accountExplorerUrl(wallets.get(receiveWallet)!.public_key)}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary-hover hover:underline"
@@ -482,7 +483,7 @@ export default function TransfersPage() {
                   <TableCell>
                     {tr.tx_hash ? (
                       <a
-                        href={`https://testnet.xdcscan.com/tx/${tr.tx_hash.replace(/^0x/, '')}`}
+                        href={txExplorerUrl(tr.tx_hash)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary-hover hover:underline"

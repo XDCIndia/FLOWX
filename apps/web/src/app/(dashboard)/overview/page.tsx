@@ -31,7 +31,7 @@ interface WalletData {
 }
 
 function statusBadge(status?: string) {
-  if (status === 'ok') return <Badge variant="success">Healthy</Badge>;
+  if (status === 'ok' || status === 'healthy') return <Badge variant="success">Healthy</Badge>;
   if (status === 'degraded') return <Badge variant="warning">Degraded</Badge>;
   return <Badge variant="danger">Down</Badge>;
 }
@@ -126,14 +126,13 @@ export default function OverviewPage() {
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <PageHeader
-        title="Overview"
-        description={
-          health?.status === 'ok'
-            ? 'All systems operational.'
-            : health
-            ? `System status: ${health.status}`
-            : 'Could not reach API'
-        }
+        title="Overview"          description={
+            health?.status === 'ok' || health?.status === 'healthy'
+              ? 'All systems operational.'
+              : health
+              ? `System status: ${health.status}`
+              : 'Could not reach API'
+          }
       />
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -181,15 +180,17 @@ export default function OverviewPage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {health?.services &&
-                Object.entries(health.services).map(([name, status]) => (
-                  <Badge
-                    key={name}
-                    variant={status === 'up' ? 'success' : 'danger'}
-                  >
-                    {name}: {status}
-                  </Badge>
-                ))}
+              {Object.entries(health?.services || health?.components || {}).map(([name, val]) => {
+                  const s = typeof val === 'string' ? val : (val as Record<string,unknown>).status;
+                  return (
+                    <Badge
+                      key={name}
+                      variant={s === 'up' || s === 'healthy' ? 'success' : 'danger'}
+                    >
+                      {name}: {s}
+                    </Badge>
+                  );
+                })}
             </div>
           </CardContent>
         </Card>

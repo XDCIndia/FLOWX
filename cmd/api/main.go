@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -409,7 +410,18 @@ func main() {
 			"replica":  func(ctx context.Context) error { return repoDB.ReplicaAvailable(ctx) },
 			"redis":    func(ctx context.Context) error { return redisClient.Ping(ctx).Err() },
 
-			"horizon": func(ctx context.Context) error { return nil },
+			"horizon": func(ctx context.Context) error {
+				if cfg.ChainBackend == "xdc" && cfg.XDCRPCURL != "" {
+					req, _ := http.NewRequestWithContext(ctx, http.MethodGet, cfg.XDCRPCURL, nil)
+					resp, err := http.DefaultClient.Do(req)
+					if err != nil {
+						return err
+					}
+					resp.Body.Close()
+					return nil
+				}
+				return nil
+			},
 			"worker":  func(ctx context.Context) error { return nil },
 		},
 

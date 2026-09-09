@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { api, type Transaction, type Wallet } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/lib/toast-context';
@@ -64,53 +64,58 @@ export default function TransfersPage() {
     amount: '',
   });
 
-  const walletIds = useMemo(() => getStoredWalletIds(), [getStoredWalletIds]);
+  const [walletIds, setWalletIds] = useState<string[]>([]);
+  const [walletsLoaded, setWalletsLoaded] = useState(false);
 
-  // Fetch wallet details to get 0x addresses
-  const fetchWalletDetails = useCallback(async () => {
-    const map = new Map<string, Wallet>();
-    for (const id of walletIds) {
-      try {
-        const wallet = await api.getWallet(id);
-        map.set(id, wallet);
-      } catch {}
-    }
-    setWallets(map);
-  }, [walletIds]);
-
-  const fetchTransfers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const allTx: Transaction[] = [];
-      for (const id of walletIds) {
-        try {
-          const res = await api.listTransactions(id, 50);
-          allTx.push(...(res.transactions || []));
-        } catch {}
-      }
-      const unique = Array.from(new Map(allTx.map((t) => [t.id, t])).values());
-      unique.sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-      setTransfers(unique);
-    } catch {
-      toast('Failed to load transfers', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [walletIds, toast]);
-
+  // Fetch wallets from the API on mount, sync localStorage
   useEffect(() => {
     let cancelled = false;
-    const run = async () => {
-      if (cancelled) return;
-      await Promise.all([fetchWalletDetails(), fetchTransfers()]);
-    };
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [fetchWalletDetails, fetchTransfers]);
+    (async () => {
+      const map = new Map<string, Wallet>();
+      try {
+        const res = await api.listWallets();
+        for (const w of res.wallets) {
+          map.set(w.id, w);
+        }
+        if (!cancelled) {
+          setWalletIds(res.wallets.map((w) => w.id));
+          localStorage.setItem('flowx_wallet_ids', JSON.stringify(res.wallets.map((w) => w.id)));
+        }
+      } catch {}
+      if (!cancelled) {
+        setWallets(map);
+        setWalletsLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Fetch transfers once wallet IDs are known
+  useEffect(() => {
+    if (!walletsLoaded || walletIds.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const allTx: Transaction[] = [];
+        for (const id of walletIds) {
+          try {
+            const res = await api.listTransactions(id, 50);
+            allTx.push(...(res.transactions || []));
+          } catch {}
+        }
+        if (cancelled) return;
+        const unique = Array.from(new Map(allTx.map((t) => [t.id, t])).values());
+        unique.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        setTransfers(unique);
+      } catch {
+        toast('Failed to load transfers', 'error');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [walletsLoaded, walletIds, toast]);
 
   const handleCreateTransfer = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.22-alpine AS builder
+FROM golang:1.24-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
@@ -11,8 +11,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /tmp/fluxa-worker ./cmd/worker
 FROM alpine:3.19
 RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
-COPY --from=builder /tmp/fluxa-api .
-COPY --from=builder /tmp/fluxa-worker .
+COPY --from=builder /tmp/fluxa-api ./api
+COPY --from=builder /tmp/fluxa-worker ./worker
 COPY db/migrations /app/db/migrations
 EXPOSE 3000
 

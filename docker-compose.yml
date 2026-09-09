@@ -56,6 +56,11 @@ services:
       FLUTTERWAVE_SECRET_KEY: ${FLUTTERWAVE_SECRET_KEY:-mock}
       FLUTTERWAVE_WEBHOOK_HASH: ${FLUTTERWAVE_WEBHOOK_HASH:-mock}
       ALERT_WEBHOOK_URL: ""
+      CHAIN_BACKEND: ${CHAIN_BACKEND:-xdc}
+      XDC_RPC_URL: ${XDC_RPC_URL:-https://rpc.apothem.network}
+      XDC_CHAIN_ID: ${XDC_CHAIN_ID:-51}
+      XDC_TREASURY_SECRET_KEY: ${XDC_TREASURY_SECRET_KEY:-}
+      PLATFORM_WALLET_ID: ${PLATFORM_WALLET_ID:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,6 +94,11 @@ services:
       FLUTTERWAVE_SECRET_KEY: ${FLUTTERWAVE_SECRET_KEY:-mock}
       FLUTTERWAVE_WEBHOOK_HASH: ${FLUTTERWAVE_WEBHOOK_HASH:-mock}
       ALERT_WEBHOOK_URL: ""
+      CHAIN_BACKEND: ${CHAIN_BACKEND:-xdc}
+      XDC_RPC_URL: ${XDC_RPC_URL:-https://rpc.apothem.network}
+      XDC_CHAIN_ID: ${XDC_CHAIN_ID:-51}
+      XDC_TREASURY_SECRET_KEY: ${XDC_TREASURY_SECRET_KEY:-}
+      PLATFORM_WALLET_ID: ${PLATFORM_WALLET_ID:-}
     depends_on:
       postgres:
         condition: service_healthy

@@ -8,6 +8,7 @@ import (
 	"github.com/fluxa/fluxa/internal/api"
 	"github.com/fluxa/fluxa/internal/domain"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -191,6 +192,10 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) cancel(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	if _, err := uuid.Parse(id); err != nil {
+		api.BadRequest(w, "invalid schedule id")
+		return
+	}
 	if err := h.svc.Cancel(r.Context(), id); err != nil {
 		api.HandleDomainError(w, err)
 		return

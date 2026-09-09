@@ -765,7 +765,7 @@ func (r *TransactionRepo) UsageSummary(ctx context.Context, tenantID string) (co
 	query := `SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM transactions`
 	args := []interface{}{}
 	if tenantID != "" {
-		query += ` WHERE tenant_id = `
+		query += ` WHERE tenant_id = $1`
 		args = append(args, tenantID)
 	}
 	err = r.db.QueryRow(ctx, query, args...).Scan(&count, &volume)

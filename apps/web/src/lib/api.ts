@@ -49,6 +49,12 @@ async function request<T>(
   const body = await res.json();
 
   if (!res.ok) {
+    if (res.status === 401) {
+      localStorage.removeItem('flowx_api_key');
+      localStorage.removeItem('flowx_wallet_ids');
+      window.location.href = '/login';
+      throw new Error('Session expired — please sign in again');
+    }
     const message = body?.error?.message || body?.message || `Request failed (${res.status})`;
     throw new Error(message);
   }
@@ -372,6 +378,10 @@ class FlowXAPI {
   // Wallets
   async createWallet(): Promise<Wallet> {
     return request<Wallet>('/v1/wallets/', { method: 'POST' });
+  }
+
+  async listWallets(): Promise<{ wallets: Wallet[] }> {
+    return request<{ wallets: Wallet[] }>('/v1/wallets/');
   }
 
   async getWalletBalances(walletId: string): Promise<{ wallet_id: string; balances: WalletBalance[] }> {

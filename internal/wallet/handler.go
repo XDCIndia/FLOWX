@@ -59,6 +59,7 @@ func (h *Handler) Routes() func(r chi.Router) {
 		r.Delete("/{id}", h.deleteWallet)
 		r.Post("/{id}/faucet", h.faucet)
 		post("/{id}/trustlines", h.addTrustline)
+		r.Post("/{id}/verify-deposit", h.verifyDeposit)
 
 		if h.contractSvc != nil {
 			r.Get("/{id}/contract-state", h.getContractState)
@@ -343,5 +344,38 @@ func (h *Handler) faucet(w http.ResponseWriter, r *http.Request) {
 		resp["tx_hash"] = result.TxHash
 	}
 	json.NewEncoder(w).Encode(resp)
+}
+
+func (h *Handler) verifyDeposit(w http.ResponseWriter, r *http.Request) {
+	walletID := chi.URLParam(r, "id")
+
+	var req struct {
+		TxHash string `json:"tx_hash"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	if req.TxHash == "" {
+		http.Error(w, `{"error":"tx_hash is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	tx, err := h.svc.VerifyDeposit(r.Context(), walletID, req.TxHash)
+	if err != nil {
+		api.HandleDomainError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":    tx.Status,
+		"wallet_id": walletID,
+		"tx_hash":   tx.TxHash,
+		"amount":    tx.Amount,
+		"asset":     tx.Asset,
+	})
 }
 

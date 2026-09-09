@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/lib/toast-context';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -12,31 +11,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Banknote } from 'lucide-react';
 
 export default function FiatPage() {
-  const { getStoredWalletIds } = useAuth();
   const { toast } = useToast();
-  const walletIds = useMemo(() => getStoredWalletIds(), [getStoredWalletIds]);
 
-  // Resolve each stored wallet ID to its on-chain address so dropdowns
-  // show xdc… addresses (not internal UUIDs). Falls back to the ID prefix.
   const [walletOptions, setWalletOptions] = useState<{ id: string; label: string }[]>([]);
   useEffect(() => {
-    let cancelled = false;
-    Promise.all(
-      walletIds.map(async (id) => {
-        try {
-          const w = await api.getWallet(id);
-          return { id, label: `${w.public_key.slice(0, 10)}…${w.public_key.slice(-4)}` };
-        } catch {
-          return { id, label: `${id.slice(0, 8)}…` };
-        }
+    api.listWallets()
+      .then((data) => {
+        setWalletOptions((data.wallets || []).map((w: any) => ({ id: w.id, label: w.public_key })));
       })
-    ).then((opts) => {
-      if (!cancelled) setWalletOptions(opts);
-    });
-    return () => { cancelled = true; };
-  }, [walletIds]);
+      .catch((err) => {
+        console.error('Failed to load wallets:', err);
+      });
+  }, []);
 
   const [tab, setTab] = useState<'deposit' | 'withdraw'>('deposit');
+  const [directAsset, setDirectAsset] = useState('TXDC');
+  const [directAmount, setDirectAmount] = useState('');
+  const [directLoading, setDirectLoading] = useState(false);
   
   // Exchange rates: 1 USDC = X local currency
   const currencyRates: Record<string, number> = {
@@ -52,6 +43,7 @@ export default function FiatPage() {
 
   // Deposit
   const [deposit, setDeposit] = useState({ wallet_id: '', amount: '', currency: 'NGN', email: '', name: '' });
+  const [depositAsset, setDepositAsset] = useState('TXDC');
   const [depositLoading, setDepositLoading] = useState(false);
   const [depositLink, setDepositLink] = useState<string | null>(null);
 
@@ -107,7 +99,7 @@ export default function FiatPage() {
 
   return (
     <div className="flex flex-col gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <PageHeader title="Fiat Rails" description="Local currency ↔ Stellar USDC via Flutterwave (mock when keys absent)." />
+      <PageHeader title="Fiat Rails" description="Local currency ↔ on-chain crypto via Flutterwave (mock when keys absent)." />
 
       <div className="flex gap-2 border-b border-border">
         <button
@@ -125,6 +117,7 @@ export default function FiatPage() {
       </div>
 
       {tab === 'deposit' ? (
+        <>
         <Card className="max-w-xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -173,6 +166,13 @@ export default function FiatPage() {
                 <label className="text-sm font-medium">Customer Name</label>
                 <Input value={deposit.name} onChange={(e) => setDeposit({ ...deposit, name: e.target.value })} required />
               </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium">Crypto Asset</label>
+                <Select value={depositAsset} onChange={(e) => setDepositAsset(e.target.value)}>
+                  <option value="TXDC">TXDC - XDC Testnet</option>
+                  <option value="USDC">USDC - USD Coin</option>
+                </Select>
+              </div>
               <Button type="submit" isLoading={depositLoading}>
                 Initiate Deposit
               </Button>
@@ -185,16 +185,15 @@ export default function FiatPage() {
                     return;
                   }
                   const rate = currencyRates[deposit.currency.toUpperCase()] || 1500;
-                  const usdcAmount = parseFloat(deposit.amount) / rate;
+                  const cryptoAmount = parseFloat(deposit.amount) / rate;
                   try {
-                    const res = await api.faucet(deposit.wallet_id, 'USDC', usdcAmount);
-                    toast(`Simulated! Added ${usdcAmount.toFixed(2)} USDC (${deposit.amount} ${deposit.currency} = 1 USDC @ ${rate})`, 'success');
+                    const res = await api.faucet(deposit.wallet_id, depositAsset, depositAsset === 'TXDC' ? parseFloat(deposit.amount) : cryptoAmount);
+                    toast(`Simulated! Added ${depositAsset === 'TXDC' ? deposit.amount : cryptoAmount.toFixed(2)} ${depositAsset} (${deposit.amount} ${deposit.currency} @ ${rate})`, 'success');
                   } catch (err) {
                     toast(err instanceof Error ? err.message : 'Simulate failed', 'error');
                   }
                 }}
-              >
-                Simulate Deposit (Demo)
+              >                  Simulate Deposit (Demo)
               </Button>
             </form>
             {depositLink && (
@@ -207,6 +206,64 @@ export default function FiatPage() {
             )}
           </CardContent>
         </Card>
+
+        <Card className="max-w-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5" />
+              Direct Crypto Deposit
+            </CardTitle>
+            <CardDescription>Fund a wallet directly with on-chain crypto (simulated via faucet).</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium">Wallet</label>
+                <Select value={deposit.wallet_id} onChange={(e) => setDeposit({ ...deposit, wallet_id: e.target.value })} required>
+                  <option value="">Select wallet</option>
+                  {walletOptions.map((w) => (
+                    <option key={w.id} value={w.id}>{w.label}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium">Asset</label>
+                  <Select value={directAsset} onChange={(e) => setDirectAsset(e.target.value)}>
+                    <option value="TXDC">TXDC</option>
+                    <option value="USDC">USDC</option>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium">Amount</label>
+                  <Input value={directAmount} onChange={(e) => setDirectAmount(e.target.value)} required className="font-mono" placeholder="10" />
+                </div>
+              </div>
+              <Button
+                isLoading={directLoading}
+                onClick={async () => {
+                  if (!deposit.wallet_id || !directAmount) {
+                    toast('Select wallet and enter amount', 'error');
+                    return;
+                  }
+                  setDirectLoading(true);
+                  try {
+                    const res = await api.faucet(deposit.wallet_id, directAsset, parseFloat(directAmount));
+                    const txMsg = res.tx_hash ? ` TX: ${res.tx_hash.slice(0, 16)}...` : '';
+                    toast(`Added ${directAmount} ${directAsset}!${txMsg}`, 'success');
+                  } catch (err) {
+                    toast(err instanceof Error ? err.message : 'Deposit failed', 'error');
+                  } finally {
+                    setDirectLoading(false);
+                  }
+                }}
+              >
+                Deposit {directAsset}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        </>
       ) : (
         <Card className="max-w-xl">
           <CardHeader>

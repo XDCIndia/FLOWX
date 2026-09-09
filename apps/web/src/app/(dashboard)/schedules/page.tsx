@@ -21,6 +21,7 @@ export default function SchedulesPage() {
   const walletIds = useMemo(() => getStoredWalletIds(), [getStoredWalletIds]);
 
   const [wallets, setWallets] = useState<{id: string; public_key: string}[]>([]);
+  const addrToId = Object.fromEntries(wallets.map((w) => [w.public_key, w.id]));
   const [schedules, setSchedules] = useState<ScheduleResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -78,8 +79,8 @@ export default function SchedulesPage() {
       const startIso = new Date(form.start_date).toISOString();
       const endIso = form.end_date ? new Date(form.end_date).toISOString() : undefined;
       await api.createSchedule({
-        from_wallet_id: form.from_wallet_id,
-        to_wallet_id: form.to_wallet_id,
+        from_wallet_id: addrToId[form.from_wallet_id] || form.from_wallet_id,
+        to_wallet_id: addrToId[form.to_wallet_id] || form.to_wallet_id,
         asset: form.asset,
         amount: form.amount,
         frequency: form.frequency,
@@ -156,7 +157,7 @@ export default function SchedulesPage() {
                   />
                   <datalist id="from-wallets-sched">
                     {wallets.map((w) => (
-                      <option key={w.id} value={w.id}>{w.public_key.slice(0, 10)}...</option>
+                      <option key={w.id} value={w.public_key}>{w.public_key}</option>
                     ))}
                   </datalist>
                 </div>
@@ -172,7 +173,7 @@ export default function SchedulesPage() {
                   />
                   <datalist id="to-wallets-sched">
                     {wallets.map((w) => (
-                      <option key={w.id} value={w.id}>{w.public_key.slice(0, 10)}...</option>
+                      <option key={w.id} value={w.public_key}>{w.public_key}</option>
                     ))}
                   </datalist>
                 </div>

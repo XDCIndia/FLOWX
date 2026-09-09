@@ -27,11 +27,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback((apiKey: string) => {
     localStorage.setItem('flowx_api_key', apiKey);
+    // Set cookie so Next.js middleware can enforce auth server-side
+    document.cookie = `flowx_api_key=${apiKey}; path=/; max-age=31536000; SameSite=Lax`;
     setIsAuthenticated(true);
   }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem('flowx_api_key');
+    // Clear auth cookie
+    document.cookie = 'flowx_api_key=; path=/; max-age=0';
     setIsAuthenticated(false);
   }, []);
 

@@ -14,14 +14,12 @@ import { Coins, ArrowRightLeft } from 'lucide-react';
 export default function FXPage() {
   const { toast } = useToast();
   const [wallets, setWallets] = useState<{id: string; public_key: string}[]>([]);
+  const addrToId = Object.fromEntries(wallets.map((w) => [w.public_key, w.id]));
 
   useEffect(() => {
-    fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000') + '/v1/wallets', {
-      headers: { Authorization: `Bearer ${localStorage.getItem('flowx_api_key')}` },
-    })
-      .then(r => r.json())
+    api.listWallets()
       .then(data => {
-        const list = data.wallets || data || [];
+        const list = data.wallets || [];
         setWallets(list.map((w: any) => ({ id: w.id, public_key: w.public_key })));
       })
       .catch(() => {});
@@ -72,7 +70,8 @@ export default function FXPage() {
     if (!quote || !convertWalletId) return;
     setConvertLoading(true);
     try {
-      const res = await api.convert({ wallet_id: convertWalletId, quote_id: quote.id });
+      const resolvedId = addrToId[convertWalletId] || convertWalletId;
+      const res = await api.convert({ wallet_id: resolvedId, quote_id: quote.id });
       toast('Conversion successful!', 'success');
       setConversionResult(res);
       setQuote(null);
@@ -190,8 +189,8 @@ export default function FXPage() {
                   <Select value={convertWalletId} onChange={(e) => setConvertWalletId(e.target.value)}>
                     <option value="">Select wallet</option>
                     {wallets.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.public_key ? '0x' + w.public_key.slice(-8) + '...' : w.id.slice(0, 16) + '...'}
+                      <option key={w.id} value={w.public_key}>
+                        {w.public_key}
                       </option>
                     ))}
                   </Select>

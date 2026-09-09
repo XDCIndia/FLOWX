@@ -66,6 +66,7 @@ export default function TransfersPage() {
 
   const [walletIds, setWalletIds] = useState<string[]>([]);
   const [walletsLoaded, setWalletsLoaded] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Fetch wallets from the API on mount, sync localStorage
   useEffect(() => {
@@ -106,16 +107,15 @@ export default function TransfersPage() {
         }
         if (cancelled) return;
         const unique = Array.from(new Map(allTx.map((t) => [t.id, t])).values());
-        unique.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setTransfers(unique);
-      } catch {
-        toast('Failed to load transfers', 'error');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+        unique.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());      setTransfers(unique);
+    } catch {
+      toast('Failed to load transfers', 'error');
+    } finally {
+      if (!cancelled) setLoading(false);
+    }
     })();
     return () => { cancelled = true; };
-  }, [walletsLoaded, walletIds, toast]);
+  }, [walletsLoaded, walletIds, toast, refreshKey]);
 
   const handleCreateTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +125,7 @@ export default function TransfersPage() {
       toast('Transfer initiated', 'success');
       setShowForm(false);
       setForm({ from_wallet_id: '', to_wallet_id: '', asset: 'TXDC', amount: '' });
-      await fetchTransfers();
+      setRefreshKey((k) => k + 1);
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Transfer failed', 'error');
     } finally {
@@ -142,8 +142,7 @@ export default function TransfersPage() {
       toast(`Deposit verified: ${res.amount} ${res.asset}`, 'success');
       setShowVerify(false);
       setVerifyTxHash('');
-      await fetchTransfers();
-      await fetchWalletDetails();
+      setRefreshKey((k) => k + 1);
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Verification failed', 'error');
     } finally {

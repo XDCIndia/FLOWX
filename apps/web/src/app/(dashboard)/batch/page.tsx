@@ -36,6 +36,8 @@ export default function BatchPage() {
 
   const [wallets, setWallets] = useState<{id: string; public_key: string}[]>([]);
   const [fromWalletId, setFromWalletId] = useState('');
+  // Map from display address to wallet UUID for the dropdown
+  const addrToId = Object.fromEntries(wallets.map((w) => [w.public_key, w.id]));
   useEffect(() => {
     fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000') + '/v1/wallets', {
       headers: { Authorization: `Bearer ${localStorage.getItem('flowx_api_key') || ''}` },
@@ -107,8 +109,10 @@ export default function BatchPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      // Resolve display address back to wallet UUID if needed
+      const resolvedFromId = addrToId[fromWalletId] || fromWalletId;
       const res = await api.createBatch({
-        from_wallet_id: fromWalletId,
+        from_wallet_id: resolvedFromId,
         transfers: items.map((it) =>
           isChainAddress(it.to_wallet_id)
             ? { to_address: it.to_wallet_id.trim(), asset: it.asset, amount: it.amount, reference: it.reference }
@@ -199,7 +203,7 @@ export default function BatchPage() {
                 />
                 <datalist id="from-wallets-batch">
                   {wallets.map((w) => (
-                    <option key={w.id} value={w.id}>{w.public_key.slice(0, 10)}...</option>
+                    <option key={w.id} value={w.public_key}>{w.public_key}</option>
                   ))}
                 </datalist>
               </div>

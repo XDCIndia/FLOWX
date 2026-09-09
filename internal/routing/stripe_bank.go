@@ -65,15 +65,26 @@ func NewStripeBankRoute(stripeKey string, fxSvc fx.Service) *StripeBankRoute {
 				settlement: 1 * 24 * time.Hour,
 				feeAsset:   "INR",
 				paymentTypes: []string{"bank_transfer", "card"},
-			},
-			"USDC-INR": {
+			},			"USDC-INR": {
 				feePercent: 1.2, fixedFee: 20, // 1.2% + $0.20
 				settlement: 1 * 24 * time.Hour,
 				feeAsset:   "USDC",
 				paymentTypes: []string{"bank_transfer"},
 			},
-		},
-	}
+			"INR-TXDC": {
+				feePercent: 1.8, fixedFee: 250, // 1.8% + ₹2.50
+				settlement: 2 * 24 * time.Hour,
+				feeAsset:   "INR",
+				paymentTypes: []string{"bank_transfer", "card"},
+			},
+			"TXDC-INR": {
+				feePercent: 1.0, fixedFee: 15, // 1% + $0.15
+				settlement: 1 * 24 * time.Hour,
+				feeAsset:   "TXDC",
+				paymentTypes: []string{"bank_transfer"},
+			},
+			},
+		}
 }
 
 func (r *StripeBankRoute) ID() RouteID   { return "stripe_bank" }

@@ -46,15 +46,24 @@ async function request<T>(
 
   if (res.status === 204) return undefined as T;
 
-  const body = await res.json();
+  // Handle 401 before parsing JSON — the API may return plain text
+  if (res.status === 401) {
+    localStorage.removeItem('flowx_api_key');
+    localStorage.removeItem('flowx_wallet_ids');
+    document.cookie = 'flowx_api_key=; path=/; max-age=0';
+    window.location.href = '/login';
+    throw new Error('Session expired — please sign in again');
+  }
+
+  const text = await res.text();
+  let body: any;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = { error: { message: text || `Request failed (${res.status})` } };
+  }
 
   if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem('flowx_api_key');
-      localStorage.removeItem('flowx_wallet_ids');
-      window.location.href = '/login';
-      throw new Error('Session expired — please sign in again');
-    }
     const message = body?.error?.message || body?.message || `Request failed (${res.status})`;
     throw new Error(message);
   }

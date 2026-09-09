@@ -55,6 +55,16 @@ func NewXDCBridgeRoute(xdcClient *xdc.Client, treasuryKey string, recipient stri
 				feePercent: 0.8, feeAsset: "NGN", settlement: 12 * time.Second,
 				description: "NGN → USDC on XDC network",
 			},
+			"INR-TXDC": {
+				gasFee: "0.001 TXDC", rate: 0.012, spreadBps: 10,
+				feePercent: 0.5, feeAsset: "INR", settlement: 12 * time.Second,
+				description: "INR → TXDC on XDC network",
+			},
+			"TXDC-INR": {
+				gasFee: "0.001 TXDC", rate: 83.0, spreadBps: 10,
+				feePercent: 0.5, feeAsset: "TXDC", settlement: 12 * time.Second,
+				description: "TXDC → INR via XDC network",
+			},
 			"NGN-TXDC": {
 				gasFee: "0.001 TXDC", rate: 0.000023, spreadBps: 15,
 				feePercent: 0.8, feeAsset: "NGN", settlement: 12 * time.Second,

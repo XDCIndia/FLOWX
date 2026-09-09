@@ -70,12 +70,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback((key: string) => {
     localStorage.setItem(API_KEY_KEY, key);
+    // Set cookie so Next.js middleware can enforce auth server-side
+    document.cookie = `${API_KEY_KEY}=${key}; path=/; max-age=31536000; SameSite=Lax`;
     notifyLocalListeners();
   }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem(API_KEY_KEY);
     localStorage.removeItem(WALLET_IDS_KEY);
+    // Clear auth cookie
+    document.cookie = `${API_KEY_KEY}=; path=/; max-age=0`;
     notifyLocalListeners();
   }, []);
 

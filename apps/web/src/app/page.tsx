@@ -170,7 +170,10 @@ export default function Home() {
             Live on the XDC Apothem testnet · Chain ID 51
           </p>
           <h1 className="mt-6 text-4xl font-bold tracking-tight text-zinc-900 animate-in fade-in slide-in-from-bottom-4 duration-700 sm:text-6xl lg:text-7xl">
-            Move money across borders on the XDC Network.
+            Move money across borders on the{" "}
+            <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-emerald-600 bg-clip-text text-transparent">
+              XDC Network.
+            </span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-zinc-500 animate-in fade-in slide-in-from-bottom-4 duration-700">
             An open, programmable payments platform — EVM-native wallets, cross-border transfers,
@@ -190,30 +193,53 @@ export default function Home() {
               Launch App →
             </Link>
           </div>
+          <div className="mx-auto mt-14 grid max-w-2xl grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700 sm:grid-cols-4">
+            {[
+              { v: "~2s", l: "finality" },
+              { v: "~2,000", l: "transactions/s" },
+              { v: "<$0.0001", l: "avg fee" },
+              { v: "ISO 20022", l: "banking standard" },
+            ].map((s) => (
+              <div key={s.l} className="text-center">
+                <div className="bg-gradient-to-r from-indigo-600 to-emerald-600 bg-clip-text text-xl font-bold text-transparent sm:text-2xl">
+                  {s.v}
+                </div>
+                <div className="mt-1 text-[11px] font-medium uppercase tracking-widest text-zinc-400">
+                  {s.l}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Architecture */}
       <section id="architecture" className="border-t border-zinc-900/10 px-6 py-20">
         <div className="mx-auto max-w-6xl">
-          <h2 className="text-center text-3xl font-bold text-zinc-900">How money moves</h2>
+          <p className="text-center text-xs font-semibold uppercase tracking-[0.25em] text-indigo-600">
+            Architecture
+          </p>
+          <h2 className="mt-3 text-center text-3xl font-bold text-zinc-900">How money moves</h2>
           <p className="mx-auto mt-3 max-w-2xl text-center text-zinc-500">
             Every request flows through the dashboard into the Go API, where the route engine
             selects a settlement leg. On-chain legs settle on XDC Apothem; the Stripe leg runs in
             sandbox and is built to flip to production keys.
           </p>
-          <div className="mt-12 overflow-x-auto rounded-2xl border border-zinc-900/10 bg-white p-4 shadow-sm sm:p-6">
+          <div className="mt-12 overflow-x-auto rounded-3xl border border-zinc-900/10 bg-white p-4 shadow-lg ring-1 ring-zinc-900/5 sm:p-6">
             <ArchitectureDiagram />
           </div>
         </div>
       </section>
 
       {/* Proof it's real */}
-      <section id="proof" className="border-t border-zinc-900/10 px-6 py-20">
+      <section id="proof" className="border-t border-zinc-900/10 bg-indigo-50/50 px-6 py-20">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <h2 className="text-3xl font-bold text-zinc-900">Proof it&apos;s real</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.25em] text-indigo-600">
+                On-chain proof
+              </p>
+              <h2 className="mt-3 text-3xl font-bold text-zinc-900">Proof it&apos;s real</h2>
               <p className="mt-3 max-w-2xl text-zinc-500">
                 No mock addresses. These contracts are deployed on XDC Apothem and the swap below
                 was executed by the route engine — click through and verify on xdcscan.
@@ -230,7 +256,7 @@ export default function Home() {
                 href={c.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group rounded-xl border border-zinc-900/10 bg-white p-6 shadow-sm transition-colors hover:border-indigo-400 hover:shadow-md"
+                className="group rounded-xl border border-zinc-900/10 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-400 hover:shadow-md"
               >
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-zinc-900">{c.label}</p>
@@ -250,7 +276,10 @@ export default function Home() {
       {/* Features */}
       <section id="features" className="border-t border-zinc-900/10 px-6 py-20">
         <div className="mx-auto max-w-6xl">
-          <h2 className="text-center text-3xl font-bold text-zinc-900">Everything behind the API</h2>
+          <p className="text-center text-xs font-semibold uppercase tracking-[0.25em] text-indigo-600">
+            Features
+          </p>
+          <h2 className="mt-3 text-center text-3xl font-bold text-zinc-900">Everything behind the API</h2>
           <p className="mx-auto mt-3 max-w-2xl text-center text-zinc-500">
             Eight payment primitives, one REST surface.
           </p>
@@ -258,7 +287,7 @@ export default function Home() {
             {features.map((f) => (
               <div
                 key={f.title}
-                className="rounded-xl border border-zinc-900/10 bg-white p-6 shadow-sm transition-colors hover:border-indigo-400"
+                className="rounded-xl border border-zinc-900/10 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-400 hover:shadow-md"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600">
                   <f.icon className="h-5 w-5" />
@@ -272,9 +301,12 @@ export default function Home() {
       </section>
 
       {/* What is simulated */}
-      <section className="border-t border-zinc-900/10 px-6 py-20">
+      <section className="border-t border-zinc-900/10 bg-amber-50/50 px-6 py-20">
         <div className="mx-auto max-w-6xl">
-          <h2 className="text-3xl font-bold text-zinc-900">What is simulated</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-amber-600">
+            Honesty
+          </p>
+          <h2 className="mt-3 text-3xl font-bold text-zinc-900">What is simulated</h2>
           <p className="mt-3 max-w-2xl text-zinc-500">
             A demo you can trust starts with saying what isn&apos;t production yet.
           </p>
@@ -293,14 +325,14 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-zinc-900/10 px-6 py-10">
+      <footer className="mt-auto bg-zinc-950 px-6 py-12 text-zinc-400">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-900 text-xs font-bold text-white">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-xs font-bold text-zinc-900">
                 F
               </div>
-              <span className="font-semibold text-zinc-900">FlowX</span>
+              <span className="font-semibold text-white">FlowX</span>
             </div>
             <p className="mt-2 text-sm text-zinc-500">
               Cross-border payment infrastructure on XDC Network.
@@ -310,7 +342,7 @@ export default function Home() {
             {stack.map((s) => (
               <span
                 key={s}
-                className="rounded-full border border-zinc-900/10 bg-zinc-900/[0.03] px-3 py-1 text-xs text-zinc-500"
+                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-zinc-400"
               >
                 {s}
               </span>
@@ -320,7 +352,7 @@ export default function Home() {
             href="https://github.com/XDCIndia/FLOWX"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-sm text-zinc-500 transition-colors hover:text-zinc-900"
+            className="inline-flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-white"
           >
             <GithubMark className="h-4 w-4" /> github.com/XDCIndia/FLOWX
           </a>

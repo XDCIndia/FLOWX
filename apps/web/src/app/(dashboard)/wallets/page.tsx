@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { api, type WalletWithBalance, type WalletBalance } from '@/lib/api';
+import { useState } from 'react';
+import { api } from '@/lib/api';
+import { useWalletsWithBalances } from '@/lib/use-api';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/lib/toast-context';
 import { PageHeader } from '@/components/ui/page-header';
@@ -18,8 +19,10 @@ import { accountExplorerUrl, explorerName } from '@/lib/explorer';
 export default function WalletsPage() {
   const { getStoredWalletIds, addStoredWalletId } = useAuth();
   const { toast } = useToast();
-  const [wallets, setWallets] = useState<WalletWithBalance[]>([]);
-  const [loading, setLoading] = useState(true);
+  // SWR-backed: balances poll on a 10s loop so the demo never looks stale,
+  // and mutations below trigger a revalidate instead of a manual refetch.
+  const storedIds = getStoredWalletIds();
+  const { data: wallets, isLoading, mutate: mutateWallets } = useWalletsWithBalances(storedIds);
   const [creating, setCreating] = useState(false);
   const [trustlineWallet, setTrustlineWallet] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -27,65 +30,15 @@ export default function WalletsPage() {
   const [trustlineForm, setTrustlineForm] = useState({ asset: 'USDC', issuer: '', limit: '' });
   const [trustlineLoading, setTrustlineLoading] = useState(false);
 
-  const fetchWallets = useCallback(async () => {
-    setLoading(true);
-    const ids = getStoredWalletIds();
-    const results = await Promise.all(
-      ids.map(async (id) => {
-        try {
-          // Fetch the wallet record so we display the real on-chain address
-          // (xdc… on the XDC backend), not the internal UUID.
-          const wallet = await api.getWallet(id);
-          let balances: WalletBalance[] = [];
-          try {
-            const res = await api.getWalletBalances(id);
-            balances = res.balances;
-          } catch {
-            // Balance fetch failure must not hide the wallet itself.
-          }
-          return {
-            id,
-            public_key: wallet.public_key,
-            created_at: wallet.created_at,
-            balances,
-          } as WalletWithBalance;
-        } catch {
-          return {
-            id,
-            public_key: id,
-            created_at: '',
-            balances: [] as WalletBalance[],
-          } as WalletWithBalance;
-        }
-      })
-    );
-    setWallets(results);
-    setLoading(false);
-  }, [getStoredWalletIds]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      if (cancelled) return;
-      await fetchWallets();
-    };
-    run();
-
-  return () => {
-      cancelled = true;
-    };
-  }, [fetchWallets]);
-
-
   const handleDelete = async (walletId: string) => {
   if (!window.confirm("Are you sure you want to delete this wallet?")) return;
   setDeleting(walletId);
   try {
     await api.deleteWallet(walletId);
-    setWallets(prev => prev.filter(w => w.id !== walletId));
     const stored = JSON.parse(localStorage.getItem("flowx_wallet_ids") || "[]");
     localStorage.setItem("flowx_wallet_ids", JSON.stringify(stored.filter((id: string) => id !== walletId)));
     toast("Wallet deleted", "success");
+    await mutateWallets();
   } catch (err) {
     toast(err instanceof Error ? err.message : "Failed to delete wallet", "error");
   } finally {
@@ -98,6 +51,7 @@ export default function WalletsPage() {
     try {
       const result = await api.faucet(walletId, 'USDC', 1000);
       toast(`Added 1000 USDC! New balance: ${result.new_balance} USDC`, 'success');
+      await mutateWallets();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Faucet failed', 'error');
     } finally {
@@ -111,6 +65,7 @@ export default function WalletsPage() {
       const result = await api.faucet(walletId, 'TXDC', 10);
       const txMsg = result.tx_hash ? ` TX: ${result.tx_hash.slice(0, 16)}...` : '';
       toast(`Added 10 TXDC!${txMsg}`, 'success');
+      await mutateWallets();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Faucet failed', 'error');
     } finally {
@@ -124,7 +79,7 @@ export default function WalletsPage() {
       const wallet = await api.createWallet();
       addStoredWalletId(wallet.id);
       toast('Wallet created successfully', 'success');
-      await fetchWallets();
+      await mutateWallets();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Failed to create wallet', 'error');
     } finally {
@@ -153,7 +108,7 @@ export default function WalletsPage() {
       });
       toast('Trustline submitted', 'success');
       setTrustlineWallet(null);
-      await fetchWallets();
+      await mutateWallets();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Trustline failed', 'error');
     } finally {
@@ -161,7 +116,7 @@ export default function WalletsPage() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex flex-col gap-8">
         <div className="flex items-center justify-between">
@@ -188,7 +143,7 @@ export default function WalletsPage() {
         </Button>
       </PageHeader>
 
-      {wallets.length === 0 ? (
+      {(wallets ?? []).length === 0 ? (
         <EmptyState
           icon={Wallet}
           title="No wallets yet"
@@ -202,7 +157,7 @@ export default function WalletsPage() {
         />
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {wallets.map((wallet) => (
+          {(wallets ?? []).map((wallet) => (
             <Card key={wallet.id} className="flex flex-col">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">

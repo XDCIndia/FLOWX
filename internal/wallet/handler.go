@@ -3,6 +3,8 @@ package wallet
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/shopspring/decimal"
 
@@ -12,37 +14,56 @@ import (
 
 type Handler struct {
 	svc          Service
-	contractSvc  ContractService
 	idem         func(http.Handler) http.Handler
-	guardianGate func(http.Handler) http.Handler
+
+	// Faucet gating (testnet only). Disabled by default; when enabled,
+	// per-request amounts are capped at faucetMax and each wallet may draw
+	// at most faucetMax per UTC day.
+	faucetEnabled bool
+	faucetMax     float64
+	faucetMu      sync.Mutex
+	faucetDaily   map[string]float64 // walletID+date -> amount drawn today
 }
 
 func NewHandler(svc Service) *Handler {
-	return &Handler{svc: svc}
+	return &Handler{svc: svc, faucetDaily: map[string]float64{}}
 }
 
-// WithContractService enables the contract-wallet endpoints. They are only
-// registered when a contract adapter is wired in, so a deployment running
-// purely custodial wallets does not expose routes it cannot serve.
-func (h *Handler) WithContractService(contractSvc ContractService) *Handler {
-	h.contractSvc = contractSvc
+// WithFaucet enables the testnet faucet with an amount cap. maxAmount is in
+// whole asset units and doubles as the per-wallet daily draw limit. When
+// enabled=false the faucet route still exists but answers 404, so probing
+// clients cannot distinguish "disabled" from "missing wallet".
+func (h *Handler) WithFaucet(enabled bool, maxAmount float64) *Handler {
+	h.faucetEnabled = enabled
+	if maxAmount > 0 {
+		h.faucetMax = maxAmount
+	}
 	return h
+}
+
+// faucetDayKey buckets per-wallet usage by UTC day.
+func faucetDayKey(walletID string) string {
+	return walletID + "@" + time.Now().UTC().Format("2006-01-02")
+}
+
+// faucetCheckLimit records amount against the wallet's daily budget and
+// reports whether it fits. Not safe for multi-replica deployments; a Redis
+// counter swap is future work (see migration plan §9).
+func (h *Handler) faucetCheckLimit(walletID string, amount float64) bool {
+	h.faucetMu.Lock()
+	defer h.faucetMu.Unlock()
+	key := faucetDayKey(walletID)
+	if h.faucetDaily[key]+amount > h.faucetMax {
+		return false
+	}
+	h.faucetDaily[key] += amount
+	return true
 }
 
 // WithIdempotency attaches the idempotency-key middleware to the
 // state-mutating routes (POST / and POST /{id}/trustlines) only.
 func (h *Handler) WithIdempotency(mw func(http.Handler) http.Handler) *Handler {
 	h.idem = mw
-	return h
-}
-
-// WithGuardianGate attaches middleware (e.g. a role check) to the
-// guardian and time-lock mutation routes only (POST/DELETE /{id}/guardians,
-// POST /{id}/time-lock). These control the contract wallet's recovery and
-// spending-freeze mechanisms, so they get the same Owner/Admin-only gating
-// applied to /v1/keys and /v1/org.
-func (h *Handler) WithGuardianGate(mw func(http.Handler) http.Handler) *Handler {
-	h.guardianGate = mw
 	return h
 }
 
@@ -60,20 +81,6 @@ func (h *Handler) Routes() func(r chi.Router) {
 		r.Post("/{id}/faucet", h.faucet)
 		post("/{id}/trustlines", h.addTrustline)
 		r.Post("/{id}/verify-deposit", h.verifyDeposit)
-
-		if h.contractSvc != nil {
-			r.Get("/{id}/contract-state", h.getContractState)
-			r.Get("/{id}/spending-status", h.getSpendingStatus)
-
-			guardianPost, guardianDelete := r.Post, r.Delete
-			if h.guardianGate != nil {
-				guardianPost = r.With(h.guardianGate).Post
-				guardianDelete = r.With(h.guardianGate).Delete
-			}
-			guardianPost("/{id}/guardians", h.addGuardian)
-			guardianDelete("/{id}/guardians/{address}", h.removeGuardian)
-			guardianPost("/{id}/time-lock", h.setTimeLock)
-		}
 	}
 }
 
@@ -83,28 +90,8 @@ type addTrustlineRequest struct {
 	Limit  string `json:"limit,omitempty"`
 }
 
-type createWalletRequest struct {
-	// OwnerPublicKey switches wallet creation to the non-custodial contract
-	// adapter. When omitted, a custodial wallet is created.
-	OwnerPublicKey string `json:"owner_public_key,omitempty"`
-}
-
-type addGuardianRequest struct {
-	Address string `json:"address" validate:"required"`
-}
-
-type setTimeLockRequest struct {
-	UntilTimestamp uint64 `json:"untilTimestamp"`
-}
-
 func (h *Handler) getWallet(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	// Use service's repository directly via GetBalances path to avoid exposing secret
-	// For now fetch via balances repo; we need wallet details.
-	// Service doesn't expose GetByID, so we reuse GetBalances with empty FX to validate existence,
-	// then fetch wallet via repo if needed. Simplest: try to load balances and return wallet ID.
-	// Instead, we will ask the service if it can load the wallet by attempting to get balances.
-	// Fallback: return the ID as public_key if not found in stellar.
 	wallet, err := h.svc.GetWalletForHandler(r.Context(), id)
 	if err != nil {
 		api.HandleDomainError(w, err)
@@ -119,121 +106,17 @@ func (h *Handler) getWallet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) createWallet(w http.ResponseWriter, r *http.Request) {
-	var req createWalletRequest
-	if r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&req)
-	}
-
-	svc := h.svc
-	var owner []string
-	if req.OwnerPublicKey != "" {
-		if h.contractSvc == nil {
-			api.BadRequest(w, "contract wallets are not enabled on this deployment")
-			return
-		}
-		svc = h.contractSvc
-		owner = []string{req.OwnerPublicKey}
-	}
-
-	wallet, err := svc.CreateWallet(r.Context(), owner...)
+	wallet, err := h.svc.CreateWallet(r.Context())
 	if err != nil {
 		api.HandleDomainError(w, err)
 		return
 	}
 
-	resp := map[string]interface{}{
+	api.JSON(w, http.StatusCreated, map[string]interface{}{
 		"id":           wallet.ID,
 		"public_key":   wallet.PublicKey,
 		"custody_type": wallet.CustodyType,
 		"created_at":   wallet.CreatedAt,
-	}
-	if wallet.ContractID != "" {
-		resp["contract_id"] = wallet.ContractID
-	}
-
-	api.JSON(w, http.StatusCreated, resp)
-}
-
-func (h *Handler) getContractState(w http.ResponseWriter, r *http.Request) {
-	state, err := h.contractSvc.GetContractState(r.Context(), chi.URLParam(r, "id"))
-	if err != nil {
-		api.HandleDomainError(w, err)
-		return
-	}
-	api.JSON(w, http.StatusOK, state)
-}
-
-func (h *Handler) getSpendingStatus(w http.ResponseWriter, r *http.Request) {
-	status, err := h.contractSvc.GetSpendingStatus(r.Context(), chi.URLParam(r, "id"))
-	if err != nil {
-		api.HandleDomainError(w, err)
-		return
-	}
-	api.JSON(w, http.StatusOK, status)
-}
-
-func (h *Handler) addGuardian(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-
-	var req addGuardianRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		api.BadRequest(w, "invalid request body")
-		return
-	}
-	if err := api.Validate(req); err != nil {
-		api.BadRequest(w, err.Error())
-		return
-	}
-
-	txHash, err := h.contractSvc.AddGuardian(r.Context(), id, req.Address)
-	if err != nil {
-		api.HandleDomainError(w, err)
-		return
-	}
-
-	api.JSON(w, http.StatusOK, map[string]interface{}{
-		"wallet_id": id,
-		"guardian":  req.Address,
-		"tx_hash":   txHash,
-	})
-}
-
-func (h *Handler) removeGuardian(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	address := chi.URLParam(r, "address")
-
-	txHash, err := h.contractSvc.RemoveGuardian(r.Context(), id, address)
-	if err != nil {
-		api.HandleDomainError(w, err)
-		return
-	}
-
-	api.JSON(w, http.StatusOK, map[string]interface{}{
-		"wallet_id": id,
-		"guardian":  address,
-		"tx_hash":   txHash,
-	})
-}
-
-func (h *Handler) setTimeLock(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-
-	var req setTimeLockRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		api.BadRequest(w, "invalid request body")
-		return
-	}
-
-	txHash, err := h.contractSvc.SetTimeLock(r.Context(), id, req.UntilTimestamp)
-	if err != nil {
-		api.HandleDomainError(w, err)
-		return
-	}
-
-	api.JSON(w, http.StatusOK, map[string]interface{}{
-		"wallet_id":       id,
-		"until_timestamp": req.UntilTimestamp,
-		"tx_hash":         txHash,
 	})
 }
 
@@ -307,6 +190,10 @@ func (h *Handler) deleteWallet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) faucet(w http.ResponseWriter, r *http.Request) {
+	if !h.faucetEnabled {
+		http.NotFound(w, r)
+		return
+	}
 	walletID := chi.URLParam(r, "id")
 
 	var req struct {
@@ -323,6 +210,15 @@ func (h *Handler) faucet(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Amount <= 0 {
 		req.Amount = 1000
+	}
+
+	if h.faucetMax > 0 && req.Amount > h.faucetMax {
+		http.Error(w, `{"error":"amount exceeds faucet maximum"}`, http.StatusBadRequest)
+		return
+	}
+	if !h.faucetCheckLimit(walletID, req.Amount) {
+		http.Error(w, `{"error":"daily faucet limit reached for this wallet"}`, http.StatusTooManyRequests)
+		return
 	}
 
 	amt := decimal.NewFromFloat(req.Amount)
@@ -378,4 +274,3 @@ func (h *Handler) verifyDeposit(w http.ResponseWriter, r *http.Request) {
 		"asset":     tx.Asset,
 	})
 }
-

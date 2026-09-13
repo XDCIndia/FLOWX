@@ -94,3 +94,29 @@ func RateLimit(rps float64, burst int) func(http.Handler) http.Handler {
 		})
 	}
 }
+
+// AuthRateLimit returns a strict per-IP limiter intended ONLY for
+// unauthenticated public auth endpoints (register/login/refresh), which are
+// cheap to attack and carry no tenant identity to key on. Unlike RateLimit it
+// has no global bucket and no tenant branch — every client IP gets its own
+// tight bucket (e.g. 5 req/min with burst 10) so credential-stuffing and
+// registration floods are throttled per source.
+func AuthRateLimit(rps float64, burst int) func(http.Handler) http.Handler {
+	limiters := newRateLimiter(rps, burst)
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ip := r.RemoteAddr
+			if ip == "" {
+				ip = "unknown"
+			}
+
+			if !limiters.getLimiter(ip).Allow() {
+				http.Error(w, `{"error":{"code":"RATE_LIMITED","message":"rate limit exceeded"}}`, http.StatusTooManyRequests)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}

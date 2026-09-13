@@ -10,7 +10,6 @@ import (
 
 	"github.com/fluxa/fluxa/internal/domain"
 	"github.com/fluxa/fluxa/internal/fees"
-	"github.com/fluxa/fluxa/internal/stellar"
 	"github.com/fluxa/fluxa/internal/chain"
 	"github.com/fluxa/fluxa/internal/chain/xdc"
 	"math/big"
@@ -67,10 +66,8 @@ type service struct {
 	conversionRepo ConversionRepo
 	auditRepo      FXQuoteAuditRepo
 	feeSvc         fees.Service
-	stellar        stellar.Client
 	redis          redis.UniversalClient
 	rateCache      *RateCache
-	usdcIssuer     string
 	providers      []Provider
 	spreadBps      int
 
@@ -107,9 +104,7 @@ func NewService(
 	convRepo ConversionRepo,
 	auditRepo FXQuoteAuditRepo,
 	feeSvc fees.Service,
-	stellarClient stellar.Client,
 	redisClient redis.UniversalClient,
-	usdcIssuer string,
 	providers []Provider,
 	spreadBps int,
 ) Service {
@@ -118,10 +113,8 @@ func NewService(
 		conversionRepo: convRepo,
 		auditRepo:      auditRepo,
 		feeSvc:         feeSvc,
-		stellar:        stellarClient,
 		redis:          redisClient,
 		rateCache:      NewRateCache(redisClient),
-		usdcIssuer:     usdcIssuer,
 		providers:      providers,
 		spreadBps:      spreadBps,
 		activePairs:    make(map[string]struct{}),

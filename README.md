@@ -18,7 +18,7 @@ FlowX is a programmable payments API built on the [XDC Network](https://xdc.org)
 - ✅ **Fiat Rails** — deposit/withdraw via Flutterwave/Stripe (mock mode)
 - ✅ **Multi-currency** — NGN, USD, EUR, GBP, INR, KES, GHS, ZAR
 - ✅ **Webhooks** — signed delivery of payment events to developer endpoints
-- ✅ **Route Engine** — compare bank (Stripe), payment network (Ripple ODL), and blockchain (XDC) routes
+- ✅ **Route Engine** — compare bank (Stripe), on-chain AMM swap (FlowXPool), and blockchain (XDC) routes
 - ✅ **Compliance** — velocity checks, spending limits, guardian wallets
 - ✅ **Fee Management** — configurable transfer and conversion fees
 - ✅ **Test Faucets** — get test USDC and real on-chain TXDC from treasury
@@ -35,7 +35,7 @@ FlowX is a programmable payments API built on the [XDC Network](https://xdc.org)
 | **Cache** | Redis 7 |
 | **Blockchain** | XDC Network (Apothem Testnet) |
 | **FX Rates** | CoinGecko API |
-| **Payment Rails** | Stripe, Flutterwave, Ripple ODL |
+| **Payment Rails** | Stripe, Flutterwave, on-chain AMM (FlowXPool) |
 
 ---
 

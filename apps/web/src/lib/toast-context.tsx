@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -34,9 +34,23 @@ const styles = {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  // Latest-toast ref so the session-expired listener (registered once)
+  // always calls the current toast implementation.
+  const toastRef = useRef<(message: string, type?: Toast['type']) => void>(() => {});
 
   const dismiss = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // api.ts is not a React module, so on 401 it dispatches this event instead
+  // of calling useToast directly. Surface the toast, then the redirect to
+  // /login happens from the fetch layer.
+  useEffect(() => {
+    const handler = () => {
+      toastRef.current?.('Session expired — please sign in again', 'error');
+    };
+    window.addEventListener('flowx:session-expired', handler);
+    return () => window.removeEventListener('flowx:session-expired', handler);
   }, []);
 
   const toast = useCallback(
@@ -47,6 +61,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     },
     [dismiss]
   );
+  toastRef.current = toast;
 
   return (
     <ToastContext.Provider value={{ toasts, toast, dismiss }}>

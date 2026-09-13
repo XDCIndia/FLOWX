@@ -180,14 +180,14 @@ export default function OverviewPage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(health?.services || health?.components || {}).map(([name, val]) => {
+              {Object.entries(health?.services || {}).map(([name, val]) => {
                   const s = typeof val === 'string' ? val : (val as Record<string,unknown>).status;
                   return (
                     <Badge
                       key={name}
                       variant={s === 'up' || s === 'healthy' ? 'success' : 'danger'}
                     >
-                      {name}: {s}
+                      {name}: {String(s)}
                     </Badge>
                   );
                 })}

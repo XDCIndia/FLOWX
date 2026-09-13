@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, type Transaction, type Wallet } from '@/lib/api';
-import { useAuth } from '@/lib/auth-context';
+import { api, type Wallet } from '@/lib/api';
+import { useWallets, useAllTransactions } from '@/lib/use-api';
 import { useToast } from '@/lib/toast-context';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -43,11 +43,16 @@ function shortAddress(addr?: string) {
 }
 
 export default function TransfersPage() {
-  const { getStoredWalletIds } = useAuth();
   const { toast } = useToast();
-  const [transfers, setTransfers] = useState<Transaction[]>([]);
+  // SWR-backed: wallets and transactions refresh automatically — fast
+  // while anything is pending, slow otherwise. No manual refresh needed.
+  const { wallets: walletList, isLoading: walletsLoading, mutate: mutateWallets } = useWallets();
+  const [walletIds, setWalletIds] = useState<string[]>([]);
+  const [walletsLoaded, setWalletsLoaded] = useState(false);
+  const { transactions: transfers, isLoading, mutate: mutateTransactions } = useAllTransactions(
+    walletsLoaded ? walletIds : []
+  );
   const [wallets, setWallets] = useState<Map<string, Wallet>>(new Map());
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [showReceive, setShowReceive] = useState(false);
@@ -64,58 +69,27 @@ export default function TransfersPage() {
     amount: '',
   });
 
-  const [walletIds, setWalletIds] = useState<string[]>([]);
-  const [walletsLoaded, setWalletsLoaded] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  // Fetch wallets from the API on mount, sync localStorage
+  // Sync wallet IDs from the SWR wallet list into local state (so the
+  // transactions hook key stays stable) and mirror to localStorage.
+  // Runs once the first wallet fetch settles — even when the list is empty.
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const map = new Map<string, Wallet>();
-      try {
-        const res = await api.listWallets();
-        for (const w of res.wallets) {
-          map.set(w.id, w);
-        }
-        if (!cancelled) {
-          setWalletIds(res.wallets.map((w) => w.id));
-          localStorage.setItem('flowx_wallet_ids', JSON.stringify(res.wallets.map((w) => w.id)));
-        }
-      } catch {}
-      if (!cancelled) {
-        setWallets(map);
-        setWalletsLoaded(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+    if (walletsLoading) return;
+    const ids = (walletList ?? []).map((w) => w.id);
+    setWalletIds(ids);
+    setWalletsLoaded(true);
+    try {
+      localStorage.setItem('flowx_wallet_ids', JSON.stringify(ids));
+    } catch {}
+  }, [walletList, walletsLoading]);
 
-  // Fetch transfers once wallet IDs are known
+  // Keep the id → Wallet map in sync for label rendering.
   useEffect(() => {
-    if (!walletsLoaded || walletIds.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const allTx: Transaction[] = [];
-        for (const id of walletIds) {
-          try {
-            const res = await api.listTransactions(id, 50);
-            allTx.push(...(res.transactions || []));
-          } catch {}
-        }
-        if (cancelled) return;
-        const unique = Array.from(new Map(allTx.map((t) => [t.id, t])).values());
-        unique.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());      setTransfers(unique);
-    } catch {
-      toast('Failed to load transfers', 'error');
-    } finally {
-      if (!cancelled) setLoading(false);
-    }
-    })();
-    return () => { cancelled = true; };
-  }, [walletsLoaded, walletIds, toast, refreshKey]);
+    setWallets(new Map((walletList ?? []).map((w) => [w.id, w])));
+  }, [walletList]);
+
+  const refreshActivity = async () => {
+    await Promise.all([mutateWallets(), mutateTransactions()]);
+  };
 
   const handleCreateTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +99,7 @@ export default function TransfersPage() {
       toast('Transfer initiated', 'success');
       setShowForm(false);
       setForm({ from_wallet_id: '', to_wallet_id: '', asset: 'TXDC', amount: '' });
-      setRefreshKey((k) => k + 1);
+      await refreshActivity();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Transfer failed', 'error');
     } finally {
@@ -142,7 +116,7 @@ export default function TransfersPage() {
       toast(`Deposit verified: ${res.amount} ${res.asset}`, 'success');
       setShowVerify(false);
       setVerifyTxHash('');
-      setRefreshKey((k) => k + 1);
+      await refreshActivity();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Verification failed', 'error');
     } finally {
@@ -168,7 +142,7 @@ export default function TransfersPage() {
   const filtered =
     filter === 'all' ? transfers : transfers.filter((t) => t.status === filter);
 
-  if (loading) {
+  if (!walletsLoaded || isLoading) {
     return (
       <div className="flex flex-col gap-8">
         <div className="flex items-center justify-between">

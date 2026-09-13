@@ -31,8 +31,12 @@ export function VerifySignatureTool() {
   const [error, setError] = useState<string | null>(null);
   const [copiedLang, setCopiedLang] = useState<string | null>(null);
 
-  const timestamp = extractHeader(rawHeaders, 'X-FlowX-Timestamp');
-  const signature = extractHeader(rawHeaders, 'X-FlowX-Signature');
+  // Canonical names are X-Fluxa-* (see docs/webhook-verification); the legacy
+  // X-FlowX-* aliases are accepted as a fallback for older deliveries.
+  const timestamp =
+    extractHeader(rawHeaders, 'X-Fluxa-Timestamp') || extractHeader(rawHeaders, 'X-FlowX-Timestamp');
+  const signature =
+    extractHeader(rawHeaders, 'X-Fluxa-Signature') || extractHeader(rawHeaders, 'X-FlowX-Signature');
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,7 +82,7 @@ export function VerifySignatureTool() {
               rows={4}
               value={rawHeaders}
               onChange={(e) => setRawHeaders(e.target.value)}
-              placeholder={'X-FlowX-Signature: sha256=...\nX-FlowX-Timestamp: 1700000000'}
+              placeholder={'X-Fluxa-Signature: sha256=...\nX-Fluxa-Timestamp: 1700000000'}
               className="font-mono text-xs"
             />
             <div className="flex gap-4 text-xs text-muted-foreground">

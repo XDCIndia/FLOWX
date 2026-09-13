@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -88,13 +89,28 @@ func (c *Client) GenerateKeypair() (string, string, error) {
 	return toXDCAddress(crypto.PubkeyToAddress(sk.PublicKey).Hex()), fmt.Sprintf("%x", crypto.FromECDSA(sk)), nil
 }
 
-// Balance returns the balance in base units (wei for native XDC).
-// ERC-20 support (asset.ContractAddress != "") is Phase 4 scope; only the
-// native asset is implemented for the working model. Accepts xdc- or
-// 0x-prefixed addresses.
+// Balance returns the balance in base units (wei for native XDC, smallest
+// divisible unit for ERC-20 tokens). Accepts xdc- or 0x-prefixed addresses.
 func (c *Client) Balance(ctx context.Context, addr string, asset chain.AssetRef) (*big.Int, error) {
 	if asset.ContractAddress != "" {
-		return nil, fmt.Errorf("xdc: ERC-20 balances not implemented yet (asset %s)", asset.Symbol)
+		data, err := encodeBalanceOf(addr)
+		if err != nil {
+			return nil, err
+		}
+		to := common.HexToAddress(normalizeAddress(asset.ContractAddress))
+		res, err := c.ec.CallContract(ctx, ethereum.CallMsg{
+			From: common.HexToAddress(normalizeAddress(addr)),
+			To:   &to,
+			Data: data,
+		}, nil)
+		if err != nil {
+			return nil, fmt.Errorf("xdc: ERC-20 balance %s (%s): %w", addr, asset.Symbol, err)
+		}
+		bal, err := decodeBalanceResult(res)
+		if err != nil {
+			return nil, fmt.Errorf("xdc: ERC-20 balance %s (%s): %w", addr, asset.Symbol, err)
+		}
+		return bal, nil
 	}
 	b, err := c.ec.BalanceAt(ctx, common.HexToAddress(normalizeAddress(addr)), nil)
 	if err != nil {
@@ -103,11 +119,12 @@ func (c *Client) Balance(ctx context.Context, addr string, asset chain.AssetRef)
 	return b, nil
 }
 
-// Transfer sends amount base units of the native asset. toAddr may be xdc-
-// or 0x-prefixed.
+// Transfer sends amount base units of the asset. For ERC-20 tokens this is
+// a transfer(to, amount) contract call signed by privateKey. toAddr may be
+// xdc- or 0x-prefixed.
 func (c *Client) Transfer(ctx context.Context, privateKey, toAddr string, asset chain.AssetRef, amount *big.Int) (string, error) {
 	if asset.ContractAddress != "" {
-		return "", fmt.Errorf("xdc: ERC-20 transfers not implemented yet (asset %s)", asset.Symbol)
+		return c.transferERC20(ctx, privateKey, toAddr, asset, amount)
 	}
 	sk, err := crypto.ToECDSA(common.FromHex(privateKey))
 	if err != nil {
@@ -194,13 +211,13 @@ func ExplorerAddressURL(addr string) string {
 
 // DepositInfo holds the verified details of an incoming on-chain transfer.
 type DepositInfo struct {
-	From         string // sender address (0x)
-	To           string // recipient address (0x)
-	Value        *big.Int
-	TxHash       string
-	BlockNumber  uint64
+	From          string // sender address (0x)
+	To            string // recipient address (0x)
+	Value         *big.Int
+	TxHash        string
+	BlockNumber   uint64
 	Confirmations uint64
-	Successful   bool
+	Successful    bool
 }
 
 // GetDeposit fetches a transaction by hash and returns its details.
@@ -254,13 +271,13 @@ func (c *Client) GetDeposit(ctx context.Context, txHash string) (*DepositInfo, e
 	}
 
 	return &DepositInfo{
-		From:         strings.ToLower(from.Hex()),
-		To:           strings.ToLower(to),
-		Value:        x.Value(),
-		TxHash:       strings.ToLower(receipt.TxHash.Hex()),
-		BlockNumber:  receipt.BlockNumber.Uint64(),
+		From:          strings.ToLower(from.Hex()),
+		To:            strings.ToLower(to),
+		Value:         x.Value(),
+		TxHash:        strings.ToLower(receipt.TxHash.Hex()),
+		BlockNumber:   receipt.BlockNumber.Uint64(),
 		Confirmations: confs,
-		Successful:   receipt.Status == types.ReceiptStatusSuccessful,
+		Successful:    receipt.Status == types.ReceiptStatusSuccessful,
 	}, nil
 }
 

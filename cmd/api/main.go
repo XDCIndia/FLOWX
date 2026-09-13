@@ -9,34 +9,27 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fluxa/fluxa/internal/alerting"
-	"github.com/fluxa/fluxa/internal/anchor"
 	"github.com/fluxa/fluxa/internal/apikey"
-	"github.com/fluxa/fluxa/internal/assets"
 	"github.com/fluxa/fluxa/internal/auth"
 	"github.com/fluxa/fluxa/internal/batch"
+	"github.com/fluxa/fluxa/internal/chain/xdc"
 	"github.com/fluxa/fluxa/internal/compliance"
 	"github.com/fluxa/fluxa/internal/config"
-	"github.com/fluxa/fluxa/internal/domain"
 	"github.com/fluxa/fluxa/internal/fees"
 	"github.com/fluxa/fluxa/internal/fiat"
-	"github.com/fluxa/fluxa/internal/routing"
 	"github.com/fluxa/fluxa/internal/fiat/flutterwave"
 	striperail "github.com/fluxa/fluxa/internal/fiat/stripe"
 	"github.com/fluxa/fluxa/internal/fx"
-	"github.com/fluxa/fluxa/internal/indexer"
 	"github.com/fluxa/fluxa/internal/org"
 	"github.com/fluxa/fluxa/internal/postgres"
 	"github.com/fluxa/fluxa/internal/queue"
-	"github.com/fluxa/fluxa/internal/reconcile"
+
+	"github.com/fluxa/fluxa/internal/routing"
 	"github.com/fluxa/fluxa/internal/schedule"
 	"github.com/fluxa/fluxa/internal/server"
 	"github.com/fluxa/fluxa/internal/server/idempotency"
 	"github.com/fluxa/fluxa/internal/settlement"
-	"github.com/fluxa/fluxa/internal/chain/xdc"
-	"github.com/fluxa/fluxa/internal/stellar"
 	"github.com/fluxa/fluxa/internal/transfer"
-	"github.com/fluxa/fluxa/internal/treasury"
 	"github.com/fluxa/fluxa/internal/wallet"
 	"github.com/fluxa/fluxa/internal/webhook"
 	"github.com/hibiken/asynq"
@@ -111,18 +104,12 @@ func main() {
 	apiKeyRepo := postgres.NewAPIKeyRepo(repoDB)
 	fiatRepo := postgres.NewFiatRepo(repoDB)
 	webhookRepo := postgres.NewWebhookRepo(repoDB)
-	reconcileRepo := postgres.NewReconcileRepo(repoDB)
 	fxQuoteRepo := postgres.NewFXQuoteRepo(repoDB)
 	batchRepo := postgres.NewBatchRepo(repoDB)
 	scheduleRepo := postgres.NewScheduleRepo(repoDB)
-	anchorRepo := postgres.NewAnchorRepo(repoDB)
-	treasuryRepo := postgres.NewTreasuryRepo(repoDB)
 	idempotencyRepo := postgres.NewIdempotencyRepo(repoDB)
 	complianceRepo := postgres.NewComplianceRepo(repoDB).WithPrimary(db)
 	idemMW := idempotency.Middleware(idempotencyRepo)
-
-	stellarClient := stellar.NewClient(cfg.StellarHorizonURL, cfg.StellarNetwork)
-	signer := stellar.NewEnvSigner(cfg.MasterEncryptionKey, cfg.StellarNetwork)
 
 	asynqOpt, err := queue.AsynqRedisOptions(cfg.RedisURL, cfg.RedisSentinelMasterName, cfg.RedisSentinelAddrs, cfg.RedisSentinelPassword)
 	if err != nil {
@@ -137,27 +124,17 @@ func main() {
 	orgSvc := org.NewService(orgRepo, userRepo, tenantRepo, jwtSecretBytes)
 
 	feeSvc := fees.NewService(feeRepo)
-	// Wallet service: Stellar backend (default) or XDC Apothem backend
-	// selected by CHAIN_BACKEND. See docs/xdc-migration-plan.md.
-	var walletSvc wallet.Service
-	var xdcClient *xdc.Client
-	if cfg.ChainBackend == "xdc" {
-		xdcClient, err = xdc.New(context.Background(), cfg.XDCRPCURL, cfg.XDCChainID)
-		if err != nil {
-			log.Fatal().Err(err).Msg("failed to initialise XDC chain client")
-		}
-		log.Info().Str("rpc", cfg.XDCRPCURL).Int64("chain_id", cfg.XDCChainID).
-			Msg("wallet backend: XDC (Apothem testnet model)")
-		walletSvc = wallet.NewXDCService(walletRepo, txRepo, xdcClient, cfg.MasterEncryptionKey, cfg.XDCTreasurySecretKey, tenantRepo)
-	} else {
-		walletSvc = wallet.NewService(walletRepo, stellarClient, cfg.MasterEncryptionKey, tenantRepo).
-			WithSigner(signer).
-			WithIssuers(cfg.StellarUSDCIssuer, cfg.StellarEURCIssuer)
+
+	// Wallet service: XDC (Apothem testnet model) backend.
+	xdcClient, err := xdc.New(context.Background(), cfg.XDCRPCURL, cfg.XDCChainID)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to initialise XDC chain client")
 	}
+	log.Info().Str("rpc", cfg.XDCRPCURL).Int64("chain_id", cfg.XDCChainID).
+		Msg("wallet backend: XDC (Apothem testnet model)")
+	walletSvc := wallet.NewXDCService(walletRepo, txRepo, xdcClient, cfg.MasterEncryptionKey, cfg.XDCTreasurySecretKey, tenantRepo)
+
 	transferSvc := transfer.NewService(txRepo, walletRepo, feeSvc, queueClient, tenantRepo)
-	if cfg.ChainBackend != "xdc" {
-		transferSvc = transferSvc.WithStellarClient(stellarClient)
-	}
 	webhookSvc := webhook.NewService(webhookRepo, queueClient, tenantRepo)
 
 	// Compliance screening sits in front of settlement, so it is wired before
@@ -167,9 +144,9 @@ func main() {
 	if cfg.ComplianceEnabled {
 		sanctionsSet := compliance.NewSanctionsSet()
 
-		// Not fatal, unlike anchorRegistry.Load: screening fails closed, so an
-		// API that boots before the first SDN refresh holds transfers for
-		// review rather than clearing them. Log loudly and carry on.
+		// Not fatal: screening fails closed, so an API that boots before the
+		// first SDN refresh holds transfers for review rather than clearing
+		// them. Log loudly and carry on.
 		if err := sanctionsSet.LoadFromRepository(ctx, complianceRepo); err != nil {
 			log.Error().Err(err).Msg("compliance: initial sanctions load failed; transfers will be held until it succeeds")
 		}
@@ -200,20 +177,8 @@ func main() {
 	batchSvc := batch.NewService(batchRepo, txRepo, transferSvc)
 	scheduleSvc := schedule.NewService(scheduleRepo, walletRepo)
 
-	issuers := map[string]string{
-		"USDC": cfg.StellarUSDCIssuer,
-		"EURC": cfg.StellarEURCIssuer,
-	}
-	// USDC/EURC pairs cover the stablecoin corridor; XLM pairs give the
-	// FX page a pair with real liquidity on both Stellar testnet and the
-	// XDC backend's rate feed (the order book is Stellar DEX data).
-	horizonProvider := fx.NewHorizonProvider(cfg.StellarHorizonURL, []string{"USDC-EURC", "EURC-USDC", "USDC-XLM", "XLM-USDC"}, issuers)
-	fxProviders := []fx.Provider{horizonProvider}
-	if cfg.ChainBackend == "xdc" {
-		// XDC is not a Stellar asset, so the Horizon order book cannot
-		// price it. CoinGecko supplies the USDC<->XDC spot rate instead.
-		fxProviders = append(fxProviders, fx.NewCoinGeckoProvider(""))
-	}
+	// FX providers: CoinGecko supplies the USDC<->XDC spot rate.
+	fxProviders := []fx.Provider{fx.NewCoinGeckoProvider("")}
 	// Fixed fiat→crypto rates for the testnet model (FIAT_STATIC_RATES),
 	// e.g. NGN-USDC / NGN-TXDC. Testnet scaffolding, not for production.
 	if cfg.FIATStaticRates != "" {
@@ -221,31 +186,25 @@ func main() {
 	}
 	fxSvc := fx.NewService(
 		walletRepo, convRepo, fxQuoteRepo,
-		feeSvc, stellarClient, redisClient,
-		cfg.StellarUSDCIssuer, fxProviders, cfg.FXSpreadBps,
+		feeSvc, redisClient,
+		fxProviders, cfg.FXSpreadBps,
 	)
 	walletSvc.WithFXService(fxSvc)
-	if cfg.ChainBackend == "xdc" && xdcClient != nil {
-		fx.SetXDC(fxSvc, xdcClient, cfg.XDCTreasurySecretKey)
-	}
+	fx.SetXDC(fxSvc, xdcClient, cfg.XDCTreasurySecretKey)
 
 	// fiat.Service drives exactly one rail, selected by FIAT_RAIL
 	// ("flutterwave" default, "stripe" optional). The Yellow Card provider
 	// (internal/fiat/yellowcard) is implemented but not wired; per-request
 	// provider selection is future work.
 	//
-	// The credit asset follows the chain backend: USDC on Stellar, TXDC on
-	// XDC (the XDC settlement engine settles the native asset in the
-	// testnet model).
-	fiatCreditAsset := "USDC"
-	if cfg.ChainBackend == "xdc" {
-		fiatCreditAsset = "TXDC"
-	}
-	var fiatRail fiat.Rail
+	// The credit asset is TXDC: the XDC settlement engine settles the native
+	// asset in the testnet model.
+	fiatCreditAsset := "TXDC"
 	fiatProviderName := cfg.FIATRail
 	if fiatProviderName == "" {
 		fiatProviderName = "flutterwave"
 	}
+	var fiatRail fiat.Rail
 	switch fiatProviderName {
 	case "stripe":
 		fiatRail = striperail.NewRail(cfg.StripeSecretKey, cfg.StripeWebhookSecret, cfg.StripeSuccessURL)
@@ -259,53 +218,9 @@ func main() {
 
 	fiatSvc := fiat.NewService(fiatRepo, fiatRail, fxSvc, transferSvc, cfg.PlatformWalletID, fiatProviderName, fiatCreditAsset)
 
-	anchorRegistry := anchor.NewRegistry(anchorRepo, nil)
-	if err := anchorRegistry.Load(ctx); err != nil {
-		log.Fatal().Err(err).Msg("load anchor registry")
-	}
-	anchorFiatSvc := fiat.NewAnchorFiatService(anchorRegistry, anchorRepo, walletRepo, cfg.MasterEncryptionKey, cfg.StellarNetwork)
-
-	treasurySvc := treasury.NewService(
-		treasuryRepo, stellarClient, fxSvc, webhookSvc,
-		cfg.PlatformFeeWalletPublicKey, cfg.StellarNetwork, cfg.TreasurySecretKey,
-		cfg.StellarUSDCIssuer, cfg.StellarEURCIssuer,
-	)
-
-	// Embedded worker (WORKER_ENABLED=true): settlement engine + indexer.
-	// Same CHAIN_BACKEND branch as cmd/worker — Horizon-backed pieces are
-	// Stellar-only and skipped on XDC.
-	var submitter settlement.TransferSubmitter
-	if cfg.ChainBackend == "xdc" {
-		xdcClient, err = xdc.New(context.Background(), cfg.XDCRPCURL, cfg.XDCChainID)
-		if err != nil {
-			log.Fatal().Err(err).Msg("failed to initialise XDC chain client")
-		}
-		submitter = settlement.NewXDCEngine(txRepo, walletRepo, feeSvc, xdcClient, cfg.MasterEncryptionKey, cfg.PlatformFeeWalletPublicKey)
-	} else {
-		submitter = settlement.NewEngine(
-			txRepo, walletRepo, feeSvc, stellarClient, signer,
-			cfg.StellarNetwork, map[string]string{
-				"USDC": cfg.StellarUSDCIssuer,
-				"EURC": cfg.StellarEURCIssuer,
-			}, cfg.PlatformFeeWalletPublicKey,
-		)
-	}
+	// Embedded worker (WORKER_ENABLED=true): settlement engine.
+	submitter := settlement.NewXDCEngine(txRepo, walletRepo, feeSvc, xdcClient, cfg.MasterEncryptionKey, cfg.PlatformFeeWalletPublicKey)
 	settlementWorker := settlement.NewWorker(submitter)
-
-	var indexerWorker *indexer.Worker
-	if cfg.ChainBackend != "xdc" {
-		idx := indexer.New(walletRepo, txRepo, stellarClient)
-		indexerWorker = indexer.NewWorker(idx)
-
-		// Live Horizon SSE stream keeps local state in sync in near real time.
-		// processPayment is idempotent (guarded by ExistsByTxHash), so running
-		// this alongside cmd/worker's own stream is safe, just extra capacity.
-		go func() {
-			if err := idx.StreamAll(ctx, 1000, 0); err != nil {
-				log.Error().Err(err).Msg("indexer: stream all wallets failed")
-			}
-		}()
-	}
 
 	asynqSrv := asynq.NewServer(asynqOpt, asynq.Config{
 		Concurrency: 5,
@@ -317,62 +232,21 @@ func main() {
 	})
 	asynqMux := asynq.NewServeMux()
 	asynqMux.HandleFunc(queue.TypeProcessTransfer, settlementWorker.HandleProcessTransfer)
-	if indexerWorker != nil {
-		asynqMux.HandleFunc(queue.TypeSyncLedger, indexerWorker.HandleSyncLedger)
-	}
 
 	if cfg.WorkerEnabled {
 		go func() {
-			log.Info().Msg("flowx api: settlement/indexer asynq consumer starting")
+			log.Info().Msg("flowx api: settlement asynq consumer starting")
 			if err := asynqSrv.Run(asynqMux); err != nil {
 				log.Error().Err(err).Msg("flowx api: asynq consumer stopped")
 			}
 		}()
 	}
 
-	alertClient := alerting.NewClient(cfg.AlertWebhookURL, "fluxa-api")
-	reconcileSvc := reconcile.NewService(
-		txRepo,
-		reconcileRepo,
-		walletRepo,
-		stellarClient,
-		alertClient,
-		queueClient,
-		webhookSvc,
-		"fluxa-api",
-		decimal.Zero,
-		assets.NewRegistry(cfg.StellarUSDCIssuer, cfg.StellarEURCIssuer),
-		cfg.PlatformFeeWalletPublicKey,
-	)
-	reconcileHandler := reconcile.NewHandler(reconcileSvc)
-
 	authHandler := auth.NewHandler(authSvc)
 	orgHandler := org.NewHandler(orgSvc)
-	walletHandler := wallet.NewHandler(walletSvc).WithIdempotency(idemMW)
-
-	// Contract wallets are opt-in: without an installed WASM hash the API keeps
-	// serving custodial wallets only and the contract routes stay unregistered.
-	if cfg.ContractWalletWasmHash != "" {
-		sorobanClient := stellar.NewSorobanClient(cfg.SorobanRPCURL, cfg.StellarNetwork)
-		spendingLimit, err := decimal.NewFromString(cfg.ContractWalletSpendingLimit)
-		if err != nil {
-			log.Fatal().Err(err).Msg("parse CONTRACT_WALLET_SPENDING_LIMIT")
-		}
-		contractSvc := wallet.NewContractWalletAdapter(
-			walletRepo,
-			sorobanClient,
-			wallet.NewSorobanDeployer(sorobanClient, signer, cfg.ContractWalletWasmHash),
-			wallet.NewSACResolver(cfg.StellarNetwork, cfg.StellarUSDCIssuer, cfg.StellarEURCIssuer),
-			wallet.ContractWalletParams{
-				RecoveryThreshold:     uint32(cfg.ContractWalletRecoveryQuota),
-				SpendingLimit:         spendingLimit,
-				SpendingWindowSeconds: uint64(cfg.ContractWalletWindowSeconds),
-			},
-		).WithTenantRepo(tenantRepo)
-		contractSvc.WithSigner(signer)
-		walletHandler = walletHandler.WithContractService(contractSvc).
-			WithGuardianGate(server.RequireRole(domain.RoleOwner, domain.RoleAdmin))
-	}
+	walletHandler := wallet.NewHandler(walletSvc).
+		WithIdempotency(idemMW).
+		WithFaucet(cfg.TestnetFaucetEnabled, cfg.FaucetMaxAmount)
 	transferHandler := transfer.NewHandler(transferSvc).WithIdempotency(idemMW)
 	fxHandler := fx.NewHandler(fxSvc).WithIdempotency(idemMW)
 	routingHandler := routing.NewHandler(cfg.StripeSecretKey)
@@ -393,28 +267,32 @@ func main() {
 	routingHandler.RegisterRoute(fiat.NewPaymentNetworkRoute("TXDC-INR", fxSvc))
 	routingHandler.RegisterRoute(routing.NewStripeBankRoute(cfg.StripeSecretKey, fxSvc))
 	routingHandler.RegisterRoute(routing.NewOnChainXDCRoute())
+	// AMM swap route: our own constant-product pool on Apothem. Registered
+	// only when both the pool and the tUSDC token address are configured;
+	// otherwise its Quote would error on every evaluation anyway.
+	if cfg.AMMPoolAddress != "" && cfg.XDCUSDCContractAddress != "" {
+		routingHandler.RegisterRoute(routing.NewAMMSwapRoute(cfg.XDCRPCURL, cfg.AMMPoolAddress, cfg.XDCUSDCContractAddress, cfg.XDCTreasurySecretKey))
+	} else {
+		log.Info().Msg("amm swap route: AMM_POOL_ADDRESS or XDC_USDC_CONTRACT_ADDRESS unset, route disabled")
+	}
 	fiatHandler := fiat.NewHandler(fiatSvc)
-	anchorFiatHandler := fiat.NewAnchorHandler(anchorFiatSvc)
-	anchorHandler := anchor.NewHandler(anchorRegistry)
 	feeHandler := fees.NewHandler(feeSvc)
 	apikeyHandler := apikey.NewHandler(apiKeyRepo)
 	webhookHandler := webhook.NewHandler(webhookSvc)
 	batchHandler := batch.NewHandler(batchSvc).WithIdempotency(idemMW)
 	scheduleHandler := schedule.NewHandler(scheduleSvc)
-	treasuryHandler := treasury.NewHandler(treasurySvc).WithMutationGate(server.RequireRole(domain.RoleOwner, domain.RoleAdmin))
 
 	srv := server.New(
 		authHandler, orgHandler, walletHandler, transferHandler, fxHandler, fiatHandler,
-		anchorFiatHandler, anchorHandler,
-		feeHandler, reconcileHandler, apikeyHandler, apiKeyRepo, txRepo,
-		webhookHandler, batchHandler, scheduleHandler, treasuryHandler, complianceHandler, routingHandler, cfg.CORSOrigins, jwtSecretBytes, cfg.Port,
+		feeHandler, apikeyHandler, apiKeyRepo, txRepo,
+		webhookHandler, batchHandler, scheduleHandler, complianceHandler, routingHandler, cfg.CORSOrigins, jwtSecretBytes, cfg.Port,
 		map[string]server.DependencyCheck{
 			"postgres": db.Ping,
 			"replica":  func(ctx context.Context) error { return repoDB.ReplicaAvailable(ctx) },
 			"redis":    func(ctx context.Context) error { return redisClient.Ping(ctx).Err() },
 
-			"horizon": func(ctx context.Context) error {
-				if cfg.ChainBackend == "xdc" && cfg.XDCRPCURL != "" {
+			"chain": func(ctx context.Context) error {
+				if cfg.XDCRPCURL != "" {
 					req, _ := http.NewRequestWithContext(ctx, http.MethodGet, cfg.XDCRPCURL, nil)
 					resp, err := http.DefaultClient.Do(req)
 					if err != nil {
@@ -425,7 +303,7 @@ func main() {
 				}
 				return nil
 			},
-			"worker":  func(ctx context.Context) error { return nil },
+			"worker": func(ctx context.Context) error { return nil },
 		},
 
 		orgRepo,
@@ -444,7 +322,7 @@ func main() {
 	<-quit
 	log.Info().Msg("shutting down")
 
-	cancel() // stop the indexer's live payment stream
+	cancel()
 
 	asynqSrv.Shutdown()
 

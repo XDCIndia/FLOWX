@@ -34,6 +34,11 @@ services:
         sync: false
       - key: XDC_RPC_URL
         value: https://rpc.apothem.network
+      # FlowX Test USD (tUSDC) ERC-20 on Apothem; deployed via cmd/tokendeploy (6 decimals).
+      - key: XDC_USDC_CONTRACT_ADDRESS
+        value: xdce069a90d55fdeca2cbec7793712aa3d807ffef9b
+      - key: AMM_POOL_ADDRESS
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: MASTER_ENCRYPTION_KEY

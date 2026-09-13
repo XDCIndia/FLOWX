@@ -17,7 +17,6 @@ import (
 	"github.com/fluxa/fluxa/internal/chain/xdc"
 	"github.com/fluxa/fluxa/internal/crypto"
 	"github.com/fluxa/fluxa/internal/domain"
-	"github.com/fluxa/fluxa/internal/stellar"
 	"github.com/fluxa/fluxa/internal/tenant"
 )
 
@@ -298,9 +297,6 @@ func (s *XDCService) ExecuteTransfer(
 	return s.chain.Transfer(ctx, string(secretBytes), destination, chain.NativeTXDC, txdcToWei(amount))
 }
 
-// WithSigner is Stellar-specific signing hooks; unused on XDC.
-func (s *XDCService) WithSigner(_ stellar.Signer) Service { return s }
-
 // WithFXService keeps interface parity; FX conversion is not wired on XDC yet.
 func (s *XDCService) WithFXService(_ FXRateGetter) Service { return s }
 
@@ -327,6 +323,18 @@ func weiToTXDC(wei *big.Int) decimal.Decimal {
 }
 
 func (s *XDCService) Faucet(ctx context.Context, walletID, assetCode string, amount decimal.Decimal) (*FaucetResult, error) {
+	// Hard gate: the faucet sends real on-chain value out of the treasury,
+	// so it must never run against anything but the Apothem testnet
+	// (chain ID 51). Anything else is a configuration error, not a request
+	// error — fail loudly rather than burning mainnet funds.
+	chainID, err := s.chain.ChainID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("faucet: cannot verify chain id: %w", err)
+	}
+	if chainID.Int64() != xdc.ApothemChainID {
+		return nil, fmt.Errorf("faucet: refusing to run on chain ID %s (only Apothem testnet %d is supported)", chainID.String(), xdc.ApothemChainID)
+	}
+
 	// Verify wallet exists
 	w, err := s.repo.GetByID(ctx, walletID)
 	if err != nil || w == nil {
@@ -370,4 +378,3 @@ func (s *XDCService) Faucet(ctx context.Context, walletID, assetCode string, amo
 
 	return &FaucetResult{Balance: newBalance.String()}, nil
 }
-

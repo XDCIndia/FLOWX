@@ -46,11 +46,17 @@ async function request<T>(
 
   if (res.status === 204) return undefined as T;
 
-  // Handle 401 before parsing JSON — the API may return plain text
+  // Handle 401 before parsing JSON — the API may return plain text.
+  // Emit an event so the toast provider can surface "session expired"
+  // before we redirect to the login page (api.ts is not a React module,
+  // so it cannot call useToast directly).
   if (res.status === 401) {
     localStorage.removeItem('flowx_api_key');
     localStorage.removeItem('flowx_wallet_ids');
     document.cookie = 'flowx_api_key=; path=/; max-age=0';
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('flowx:session-expired'));
+    }
     window.location.href = '/login';
     throw new Error('Session expired — please sign in again');
   }
@@ -350,6 +356,63 @@ export interface FiatWithdrawResponse {
   status: string;
 }
 
+// --- Payment routes (multi-rail quoting & execution) ---
+export interface PaymentRouteOption {
+  route_id: string;
+  route_name: string;
+  score: number;
+  cost_score: number;
+  speed_score: number;
+  reliability: number;
+  compliance: number;
+  liquidity: number;
+  recommended: boolean;
+  source_asset: string;
+  dest_asset: string;
+  source_amount: string;
+  dest_amount: string;
+  rate: string;
+  fee: string;
+  fee_asset: string;
+  settlement_time: string;
+  provider: string;
+  warnings?: string[];
+}
+
+export interface PaymentQuoteRequest {
+  source_asset: string;
+  dest_asset: string;
+  amount: string;
+  ranking_mode?: string;
+}
+
+export interface PaymentQuoteResponse {
+  source_asset: string;
+  dest_asset: string;
+  amount: string;
+  ranking_mode: string;
+  routes: PaymentRouteOption[];
+  total_routes: number;
+}
+
+export interface PaymentExecuteRequest {
+  source_asset: string;
+  dest_asset: string;
+  amount: string;
+  route_id: string;
+  destination_address?: string;
+}
+
+export interface PaymentExecuteResponse {
+  route_id: string;
+  route_name: string;
+  reference: string;
+  source_asset: string;
+  dest_asset: string;
+  amount: string;
+  dest_amount: string;
+}
+
 // --- Trustline ---
 export interface CreateTrustlineRequest {
   asset: string;
@@ -565,6 +628,21 @@ class FlowXAPI {
 
   async cancelSchedule(id: string): Promise<void> {
     return request(`/v1/schedules/${id}`, { method: 'DELETE' });
+  }
+
+  // Payment routes
+  async getPaymentQuote(data: PaymentQuoteRequest): Promise<PaymentQuoteResponse> {
+    return request<PaymentQuoteResponse>('/v1/payments/quote', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async executePaymentRoute(data: PaymentExecuteRequest): Promise<PaymentExecuteResponse> {
+    return request<PaymentExecuteResponse>('/v1/payments/send', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   // Fiat

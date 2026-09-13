@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useToast } from '@/lib/toast-context';
+import { useWallets, usePaymentQuote, useExecuteRoute } from '@/lib/use-api';
+import type { PaymentRouteOption, PaymentExecuteResponse, PaymentQuoteResponse } from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -13,46 +15,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Route, Trophy, Clock, Shield, Coins, Zap, AlertTriangle, CheckCircle } from 'lucide-react';
 import { txExplorerUrl } from '@/lib/explorer';
 
-interface RouteOption {
-  route_id: string;
-  route_name: string;
-  score: number;
-  cost_score: number;
-  speed_score: number;
-  reliability: number;
-  compliance: number;
-  liquidity: number;
-  recommended: boolean;
-  source_asset: string;
-  dest_asset: string;
-  source_amount: string;
-  dest_amount: string;
-  rate: string;
-  fee: string;
-  fee_asset: string;
-  settlement_time: string;
-  provider: string;
-  warnings?: string[];
-}
-
-interface QuoteResponse {
-  source_asset: string;
-  dest_asset: string;
-  amount: string;
-  ranking_mode: string;
-  routes: RouteOption[];
-  total_routes: number;
-}
-
-interface ExecutionResult {
-  route_id: string;
-  route_name: string;
-  reference: string;
-  source_asset: string;
-  dest_asset: string;
-  amount: string;
-  dest_amount: string;
-}
+type RouteOption = PaymentRouteOption;
+type ExecutionResult = PaymentExecuteResponse;
 
 function ScoreBar({ label, score, icon: Icon }: { label: string; score: number; icon: React.ElementType }) {
   const color = score >= 80 ? 'bg-green-500' : score >= 50 ? 'bg-yellow-500' : 'bg-red-500';
@@ -98,7 +62,7 @@ export default function PaymentsPage() {
   const [amount, setAmount] = useState('');
   const [rankingMode, setRankingMode] = useState('balanced');
   const [loading, setLoading] = useState(false);
-  const [quote, setQuote] = useState<QuoteResponse | null>(null);
+  const [quote, setQuote] = useState<PaymentQuoteResponse | null>(null);
   const [executingRoute, setExecutingRoute] = useState<string | null>(null);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   // Beneficiary: user's own FlowX wallets (their on-chain address), or the

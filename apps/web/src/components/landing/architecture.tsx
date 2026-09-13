@@ -25,20 +25,20 @@ export function ArchitectureDiagram(): ReactElement {
       </desc>
 
       <style>{`
-        .fx-box { fill: rgba(255,255,255,0.03); stroke: rgba(255,255,255,0.12); }
-        .fx-leg { fill: rgba(99,91,255,0.06); stroke: rgba(129,140,248,0.45); }
-        .fx-chain { fill: rgba(52,211,153,0.05); stroke: rgba(52,211,153,0.55); }
-        .fx-title { fill: #e4e4e7; font-size: 13px; font-weight: 600; }
+        .fx-box { fill: rgba(20,22,31,0.02); stroke: rgba(20,22,31,0.14); }
+        .fx-leg { fill: rgba(99,102,241,0.07); stroke: rgba(99,102,241,0.5); }
+        .fx-chain { fill: rgba(5,150,105,0.07); stroke: rgba(5,150,105,0.6); }
+        .fx-title { fill: #18181b; font-size: 13px; font-weight: 600; }
         .fx-sub { fill: #71717a; font-size: 10.5px; }
-        .fx-note { fill: #52525b; font-size: 10px; }
+        .fx-note { fill: #a1a1aa; font-size: 10px; }
         .fx-flow {
-          stroke: #6366f1; stroke-width: 1.5; fill: none;
+          stroke: #4f46e5; stroke-width: 1.5; fill: none;
           stroke-dasharray: 6 6; animation: fx-dash 1.4s linear infinite;
         }
         .fx-sidecar {
-          stroke: #52525b; stroke-width: 1.25; fill: none; stroke-dasharray: 4 4;
+          stroke: #a1a1aa; stroke-width: 1.25; fill: none; stroke-dasharray: 4 4;
         }
-        .fx-static { stroke: #3f3f46; stroke-width: 1.5; fill: none; }
+        .fx-static { stroke: #d4d4d8; stroke-width: 1.5; fill: none; }
         @keyframes fx-dash { to { stroke-dashoffset: -12; } }
         @media (prefers-reduced-motion: reduce) {
           .fx-flow { animation: none; }
@@ -47,13 +47,13 @@ export function ArchitectureDiagram(): ReactElement {
 
       <defs>
         <pattern id="fx-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path d="M40 0 H0 V40" fill="none" stroke="rgba(255,255,255,0.035)" strokeWidth="1" />
+          <path d="M40 0 H0 V40" fill="none" stroke="rgba(20,22,31,0.05)" strokeWidth="1" />
         </pattern>
         <marker id="fx-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
-          <path d="M0 0 L10 5 L0 10 z" fill="#6366f1" />
+          <path d="M0 0 L10 5 L0 10 z" fill="#4f46e5" />
         </marker>
         <marker id="fx-arrow-dim" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M0 0 L10 5 L0 10 z" fill="#52525b" />
+          <path d="M0 0 L10 5 L0 10 z" fill="#a1a1aa" />
         </marker>
       </defs>
 
@@ -125,7 +125,7 @@ export function ArchitectureDiagram(): ReactElement {
       <path className="fx-flow" d="M780 154 H800 V175 H812" />
       <path className="fx-flow" d="M780 272 H812" />
       <rect className="fx-chain" x="820" y="160" width="120" height="160" rx="12" strokeWidth="1.5" />
-      <text x="880" y="214" textAnchor="middle" fill="#34d399" fontSize="20" fontWeight="700">XDC</text>
+      <text x="880" y="214" textAnchor="middle" fill="#059669" fontSize="20" fontWeight="700">XDC</text>
       <text className="fx-title" x="880" y="238" textAnchor="middle">Apothem Testnet</text>
       <text className="fx-sub" x="880" y="256" textAnchor="middle">tUSDC · TXDC</text>
       <text className="fx-note" x="880" y="298" textAnchor="middle">on-chain settlement</text>

@@ -119,7 +119,7 @@ function GithubMark({ className }: { className?: string }) {
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col bg-[#060709] text-zinc-300">
+    <div className="flex min-h-screen flex-col bg-white text-zinc-600">
       {/* White hero — original landing.html theme (fluid ink canvas) */}
       <section className="relative overflow-hidden bg-white text-zinc-900">
         <FluidCanvas />
@@ -192,32 +192,32 @@ export default function Home() {
       </section>
 
       {/* Architecture */}
-      <section id="architecture" className="border-t border-white/10 px-6 py-20">
+      <section id="architecture" className="border-t border-zinc-900/10 px-6 py-20">
         <div className="mx-auto max-w-6xl">
-          <h2 className="text-center text-3xl font-bold text-zinc-50">How money moves</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-center text-zinc-400">
+          <h2 className="text-center text-3xl font-bold text-zinc-900">How money moves</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-center text-zinc-500">
             Every request flows through the dashboard into the Go API, where the route engine
             selects a settlement leg. On-chain legs settle on XDC Apothem; the Stripe leg runs in
             sandbox and is built to flip to production keys.
           </p>
-          <div className="mt-12 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.02] p-4 sm:p-6">
+          <div className="mt-12 overflow-x-auto rounded-2xl border border-zinc-900/10 bg-white p-4 shadow-sm sm:p-6">
             <ArchitectureDiagram />
           </div>
         </div>
       </section>
 
       {/* Proof it's real */}
-      <section id="proof" className="border-t border-white/10 px-6 py-20">
+      <section id="proof" className="border-t border-zinc-900/10 px-6 py-20">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <h2 className="text-3xl font-bold text-zinc-50">Proof it&apos;s real</h2>
-              <p className="mt-3 max-w-2xl text-zinc-400">
+              <h2 className="text-3xl font-bold text-zinc-900">Proof it&apos;s real</h2>
+              <p className="mt-3 max-w-2xl text-zinc-500">
                 No mock addresses. These contracts are deployed on XDC Apothem and the swap below
                 was executed by the route engine — click through and verify on xdcscan.
               </p>
             </div>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-600/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700">
               <CheckCircle2 className="h-3.5 w-3.5" /> Verified on-chain
             </span>
           </div>
@@ -228,17 +228,17 @@ export default function Home() {
                 href={c.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group rounded-xl border border-white/10 bg-white/[0.03] p-6 transition-colors hover:border-indigo-400/40 hover:bg-white/[0.05]"
+                className="group rounded-xl border border-zinc-900/10 bg-white p-6 shadow-sm transition-colors hover:border-indigo-400 hover:shadow-md"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-zinc-100">{c.label}</p>
-                  <ExternalLink className="h-4 w-4 text-zinc-500 transition-colors group-hover:text-indigo-300" />
+                  <p className="text-sm font-semibold text-zinc-900">{c.label}</p>
+                  <ExternalLink className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-indigo-500" />
                 </div>
-                <p className="mt-1 text-xs uppercase tracking-wide text-zinc-500">{c.kind}</p>
-                <p className="mt-4 break-all rounded-lg bg-black/40 px-3 py-2 font-mono text-xs text-indigo-300">
+                <p className="mt-1 text-xs uppercase tracking-wide text-zinc-400">{c.kind}</p>
+                <p className="mt-4 break-all rounded-lg bg-zinc-900/[0.04] px-3 py-2 font-mono text-xs text-indigo-600">
                   {c.address}
                 </p>
-                <p className="mt-4 text-sm leading-relaxed text-zinc-400">{c.note}</p>
+                <p className="mt-4 text-sm leading-relaxed text-zinc-500">{c.note}</p>
               </a>
             ))}
           </div>
@@ -246,23 +246,23 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section id="features" className="border-t border-white/10 px-6 py-20">
+      <section id="features" className="border-t border-zinc-900/10 px-6 py-20">
         <div className="mx-auto max-w-6xl">
-          <h2 className="text-center text-3xl font-bold text-zinc-50">Everything behind the API</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-center text-zinc-400">
+          <h2 className="text-center text-3xl font-bold text-zinc-900">Everything behind the API</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-center text-zinc-500">
             Eight payment primitives, one REST surface.
           </p>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {features.map((f) => (
               <div
                 key={f.title}
-                className="rounded-xl border border-white/10 bg-white/[0.03] p-6 transition-colors hover:border-indigo-400/40"
+                className="rounded-xl border border-zinc-900/10 bg-white p-6 shadow-sm transition-colors hover:border-indigo-400"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-300">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600">
                   <f.icon className="h-5 w-5" />
                 </div>
-                <h3 className="mt-4 font-semibold text-zinc-100">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-zinc-400">{f.description}</p>
+                <h3 className="mt-4 font-semibold text-zinc-900">{f.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-500">{f.description}</p>
               </div>
             ))}
           </div>
@@ -270,20 +270,20 @@ export default function Home() {
       </section>
 
       {/* What is simulated */}
-      <section className="border-t border-white/10 px-6 py-20">
+      <section className="border-t border-zinc-900/10 px-6 py-20">
         <div className="mx-auto max-w-6xl">
-          <h2 className="text-3xl font-bold text-zinc-50">What is simulated</h2>
-          <p className="mt-3 max-w-2xl text-zinc-400">
+          <h2 className="text-3xl font-bold text-zinc-900">What is simulated</h2>
+          <p className="mt-3 max-w-2xl text-zinc-500">
             A demo you can trust starts with saying what isn&apos;t production yet.
           </p>
           <div className="mt-10 grid gap-4 md:grid-cols-3">
             {simulated.map((s) => (
-              <div key={s.title} className="rounded-xl border border-amber-400/20 bg-amber-400/[0.04] p-6">
-                <div className="flex items-center gap-2 text-amber-300">
+              <div key={s.title} className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-6">
+                <div className="flex items-center gap-2 text-amber-600">
                   <AlertTriangle className="h-4 w-4" />
                   <h3 className="font-semibold">{s.title}</h3>
                 </div>
-                <p className="mt-3 text-sm leading-relaxed text-zinc-400">{s.body}</p>
+                <p className="mt-3 text-sm leading-relaxed text-zinc-500">{s.body}</p>
               </div>
             ))}
           </div>
@@ -291,14 +291,14 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-white/10 px-6 py-10">
+      <footer className="mt-auto border-t border-zinc-900/10 px-6 py-10">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500 text-xs font-bold text-white">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-900 text-xs font-bold text-white">
                 F
               </div>
-              <span className="font-semibold text-zinc-100">FlowX</span>
+              <span className="font-semibold text-zinc-900">FlowX</span>
             </div>
             <p className="mt-2 text-sm text-zinc-500">
               Cross-border payment infrastructure on XDC Network.
@@ -308,7 +308,7 @@ export default function Home() {
             {stack.map((s) => (
               <span
                 key={s}
-                className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-zinc-400"
+                className="rounded-full border border-zinc-900/10 bg-zinc-900/[0.03] px-3 py-1 text-xs text-zinc-500"
               >
                 {s}
               </span>
@@ -318,7 +318,7 @@ export default function Home() {
             href="https://github.com/XDCIndia/FLOWX"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-sm text-zinc-400 transition-colors hover:text-zinc-100"
+            className="inline-flex items-center gap-2 text-sm text-zinc-500 transition-colors hover:text-zinc-900"
           >
             <GithubMark className="h-4 w-4" /> github.com/XDCIndia/FLOWX
           </a>

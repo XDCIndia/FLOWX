@@ -223,6 +223,22 @@ func TestSign_Deterministic(t *testing.T) {
 	}
 }
 
+// The signature commits to the payload: same secret and timestamp, different
+// bodies must yield different signatures, so a tampered delivery cannot keep
+// a valid signature.
+func TestSign_DiffersByPayload(t *testing.T) {
+	secret := "test-secret"
+	timestamp := "1700000000"
+	payloadA := []byte(`{"event":"transfer.settled","id":"tx-1"}`)
+	payloadB := []byte(`{"event":"transfer.settled","id":"tx-2"}`)
+
+	sigA := sign(secret, timestamp, payloadA)
+	sigB := sign(secret, timestamp, payloadB)
+	if sigA == sigB {
+		t.Fatal("sign() produced identical signatures for different payloads")
+	}
+}
+
 func TestDispatch_FiltersByEvent(t *testing.T) {
 	repo := newMockRepo()
 	svc := NewService(repo, nil)

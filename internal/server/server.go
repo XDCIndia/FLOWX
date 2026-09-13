@@ -79,7 +79,14 @@ func New(
 
 	r.Route("/v1", func(r chi.Router) {
 		// Unauthenticated public endpoints
-		r.Route("/auth", authHandler.Routes())
+		r.Route("/auth", func(r chi.Router) {
+			// Public auth endpoints (register/login/refresh) are brute-force
+			// targets with no tenant identity to key on: apply a strict
+			// per-IP limit (5 req/min, burst 10). Authenticated groups below
+			// keep their own limits — do not widen this middleware's scope.
+			r.Use(AuthRateLimit(5.0/60.0, 10))
+			authHandler.Routes()(r)
+		})
 		r.Post("/org/invites/accept", orgHandler.AcceptInvite)
 		// Registered as a direct path (not r.Route("/webhooks", ...)) because
 		// the authenticated group below already mounts a "/webhooks"

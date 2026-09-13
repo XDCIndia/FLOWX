@@ -10,7 +10,6 @@ import (
 	"github.com/fluxa/fluxa/internal/chain/xdc"
 	"github.com/fluxa/fluxa/internal/domain"
 	"github.com/fluxa/fluxa/internal/fx"
-	"github.com/fluxa/fluxa/internal/stellar"
 	"github.com/fluxa/fluxa/internal/transfer"
 	"github.com/shopspring/decimal"
 )
@@ -219,10 +218,6 @@ func (m *mockTransferService) ListTransactions(ctx context.Context, walletID str
 }
 
 func (m *mockTransferService) WithScreener(_ transfer.Screener) transfer.Service {
-	return m
-}
-
-func (m *mockTransferService) WithStellarClient(stellarClient stellar.Client) transfer.Service {
 	return m
 }
 

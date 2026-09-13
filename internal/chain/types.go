@@ -1,9 +1,8 @@
 // Package chain defines the chain-agnostic interface that FlowX settlement
 // backends implement. See docs/xdc-migration-plan.md.
 //
-// Status: seeded by the XDC Apothem migration (Phase 0/2). The existing
-// internal/stellar package is the reference implementation to be adapted
-// onto this interface in Phase 1.
+// Status: seeded by the XDC Apothem migration (Phase 0/2). The XDC backend
+// (internal/chain/xdc) is the reference implementation of this interface.
 package chain
 
 import (

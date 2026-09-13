@@ -7,7 +7,6 @@ import (
 
 	"github.com/fluxa/fluxa/internal/domain"
 	"github.com/fluxa/fluxa/internal/queue"
-	"github.com/fluxa/fluxa/internal/stellar"
 	"github.com/fluxa/fluxa/internal/transfer"
 	"github.com/hibiken/asynq"
 	"github.com/shopspring/decimal"
@@ -57,10 +56,6 @@ func (f *fakeTransferSvc) InitiateBatchTransfer(_ context.Context, fromID, toID,
 }
 
 func (f *fakeTransferSvc) WithScreener(_ transfer.Screener) transfer.Service {
-	return f
-}
-
-func (f *fakeTransferSvc) WithStellarClient(_ stellar.Client) transfer.Service {
 	return f
 }
 

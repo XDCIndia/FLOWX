@@ -18,10 +18,6 @@ type Config struct {
 	RedisSentinelMasterName     string
 	RedisSentinelAddrs          []string
 	RedisSentinelPassword       string
-	StellarNetwork              string
-	StellarHorizonURL           string
-	StellarUSDCIssuer           string
-	StellarEURCIssuer           string
 	// ChainBackend selects the settlement backend: "stellar" (default) or
 	// "xdc". See docs/xdc-migration-plan.md.
 	ChainBackend         string
@@ -54,11 +50,6 @@ type Config struct {
 	JWTSecret                   string
 	CORSOrigins                 []string
 	FXSpreadBps                 int
-	SorobanRPCURL               string
-	ContractWalletWasmHash      string
-	ContractWalletSpendingLimit string
-	ContractWalletWindowSeconds int
-	ContractWalletRecoveryQuota int
 	YellowCardAPIKey            string
 	YellowCardWebhookKey        string
 	YellowCardSandbox           bool
@@ -88,18 +79,12 @@ func Load() (*Config, error) {
 
 	viper.SetDefault("PORT", "3000")
 	viper.SetDefault("ENV", "development")
-	viper.SetDefault("STELLAR_NETWORK", "testnet")
-	viper.SetDefault("STELLAR_HORIZON_URL", "https://horizon-testnet.stellar.org")
 	viper.SetDefault("CHAIN_BACKEND", "stellar")
 	viper.SetDefault("XDC_RPC_URL", "https://rpc.apothem.network")
 	viper.SetDefault("XDC_CHAIN_ID", "51")
 	viper.SetDefault("MIGRATIONS_PATH", "db/migrations")
 	viper.SetDefault("FX_SPREAD_BPS", "50")
 	viper.SetDefault("JWT_SECRET", "fluxa-default-jwt-secret-key-change-in-production")
-	viper.SetDefault("SOROBAN_RPC_URL", "https://soroban-testnet.stellar.org")
-	viper.SetDefault("CONTRACT_WALLET_SPENDING_LIMIT", "1000")
-	viper.SetDefault("CONTRACT_WALLET_WINDOW_SECONDS", "86400")
-	viper.SetDefault("CONTRACT_WALLET_RECOVERY_THRESHOLD", "2")
 	viper.SetDefault("YELLOW_CARD_SANDBOX", "true")
 	viper.SetDefault("COMPLIANCE_ENABLED", "true")
 	viper.SetDefault("OFAC_SDN_URL", "https://sanctionslistservice.ofac.treas.gov/api/download/sdn.xml")
@@ -161,14 +146,10 @@ func Load() (*Config, error) {
 		RedisSentinelMasterName:     viper.GetString("REDIS_SENTINEL_MASTER_NAME"),
 		RedisSentinelAddrs:          splitCSV(viper.GetString("REDIS_SENTINEL_ADDRS")),
 		RedisSentinelPassword:       viper.GetString("REDIS_SENTINEL_PASSWORD"),
-		StellarNetwork:              viper.GetString("STELLAR_NETWORK"),
-		StellarHorizonURL:           viper.GetString("STELLAR_HORIZON_URL"),
-		StellarUSDCIssuer:           viper.GetString("STELLAR_USDC_ISSUER"),
 		ChainBackend:                viper.GetString("CHAIN_BACKEND"),
 		XDCRPCURL:                   viper.GetString("XDC_RPC_URL"),
 		XDCChainID:                  viper.GetInt64("XDC_CHAIN_ID"),
 		XDCTreasurySecretKey:        viper.GetString("XDC_TREASURY_SECRET_KEY"),
-		StellarEURCIssuer:           viper.GetString("STELLAR_EURC_ISSUER"),
 		MasterEncryptionKey:         keyBytes,
 		TreasurySecretKey:           viper.GetString("TREASURY_SECRET_KEY"),
 		PlatformFeeWalletPublicKey:  viper.GetString("PLATFORM_FEE_WALLET_PUBLIC_KEY"),
@@ -187,11 +168,6 @@ func Load() (*Config, error) {
 		BalanceDiscrepancyThreshold: viper.GetString("BALANCE_DISCREPANCY_THRESHOLD"),
 		JWTSecret:                   viper.GetString("JWT_SECRET"),
 		FXSpreadBps:                 viper.GetInt("FX_SPREAD_BPS"),
-		SorobanRPCURL:               viper.GetString("SOROBAN_RPC_URL"),
-		ContractWalletWasmHash:      viper.GetString("CONTRACT_WALLET_WASM_HASH"),
-		ContractWalletSpendingLimit: viper.GetString("CONTRACT_WALLET_SPENDING_LIMIT"),
-		ContractWalletWindowSeconds: viper.GetInt("CONTRACT_WALLET_WINDOW_SECONDS"),
-		ContractWalletRecoveryQuota: viper.GetInt("CONTRACT_WALLET_RECOVERY_THRESHOLD"),
 		YellowCardAPIKey:            viper.GetString("YELLOW_CARD_API_KEY"),
 		YellowCardWebhookKey:        viper.GetString("YELLOW_CARD_WEBHOOK_KEY"),
 		YellowCardSandbox:           ycSandbox,

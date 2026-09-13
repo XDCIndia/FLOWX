@@ -6,7 +6,6 @@ var (
 	ErrWalletNotFound               = errors.New("wallet not found")
 	ErrTransactionNotFound          = errors.New("transaction not found")
 	ErrInsufficientBalance          = errors.New("insufficient balance")
-	ErrStellarSubmission            = errors.New("stellar transaction submission failed")
 	ErrDecryptionFailed             = errors.New("secret key decryption failed")
 	ErrSlippageExceeded             = errors.New("slippage tolerance exceeded")
 	ErrInvalidAsset                 = errors.New("invalid or unsupported asset")
@@ -38,7 +37,7 @@ var (
 	ErrInsufficientSweepableBalance = errors.New("sweep amount exceeds sweepable balance")
 	ErrTreasuryConfigNotFound       = errors.New("treasury config not found for asset")
 	ErrConcurrentUpdate            = errors.New("concurrent update: expected row was not modified")
-	ErrSubPrecisionAmount         = errors.New("amount has more precision than the Stellar asset supports")
+	ErrSubPrecisionAmount         = errors.New("amount has more precision than the chain asset supports")
 
 	ErrOwnerKeyRequired          = errors.New("owner public key is required to create a contract wallet")
 	ErrNotContractWallet         = errors.New("wallet is not a contract wallet")

@@ -10,12 +10,10 @@ import (
 	"github.com/fluxa/fluxa/internal/domain"
 	"github.com/fluxa/fluxa/internal/fees"
 	"github.com/fluxa/fluxa/internal/queue"
-	"github.com/fluxa/fluxa/internal/stellar"
 	"github.com/fluxa/fluxa/internal/tenant"
 	walletpkg "github.com/fluxa/fluxa/internal/wallet"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
-	horizonclient "github.com/stellar/go/clients/horizonclient"
 )
 
 type TenantGetter interface {
@@ -50,7 +48,6 @@ type Service interface {
 	InitiateBatchPayout(ctx context.Context, fromID, toAddress, asset string, amount decimal.Decimal, batchID, reference string) (*domain.Transaction, error)
 	GetTransaction(ctx context.Context, id string) (*domain.Transaction, error)
 	ListTransactions(ctx context.Context, walletID string, limit, offset int) ([]*domain.Transaction, error)
-	WithStellarClient(stellarClient stellar.Client) Service
 	// WithScreener enables compliance screening. It is optional so the
 	// worker's screener-less wiring still compiles; when unset, transfers
 	// are not screened.
@@ -63,7 +60,6 @@ type service struct {
 	feeSvc     fees.Service
 	queue      *queue.Client
 	tenantRepo TenantGetter
-	stellar    stellar.Client
 	screener   Screener
 }
 
@@ -72,11 +68,6 @@ func NewService(repo Repository, walletRepo walletpkg.Repository, feeSvc fees.Se
 	if len(tenantRepo) > 0 {
 		s.tenantRepo = tenantRepo[0]
 	}
-	return s
-}
-
-func (s *service) WithStellarClient(stellarClient stellar.Client) Service {
-	s.stellar = stellarClient
 	return s
 }
 
@@ -268,26 +259,6 @@ func (s *service) initiate(ctx context.Context, fromID, toID, toAddress, asset s
 
 func (s *service) validateTrustline(ctx context.Context, walletID, publicKey, asset string) error {
 	hasTrustline := false
-
-	if s.stellar != nil {
-		acct, err := s.stellar.LoadAccount(publicKey)
-		if err != nil {
-			hErr, ok := err.(*horizonclient.Error)
-			if ok && hErr.Response.Status == "404" {
-				return domain.NewErrNoTrustline(asset)
-			}
-		} else {
-			for _, b := range acct.Balances {
-				if b.Code == asset {
-					hasTrustline = true
-					break
-				}
-			}
-			if hasTrustline {
-				return nil
-			}
-		}
-	}
 
 	// Fallback check in DB cached balances
 	cached, err := s.walletRepo.GetBalances(ctx, walletID)

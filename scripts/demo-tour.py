@@ -87,7 +87,7 @@ async def main():
         await settle(page, 2000)
 
         # ---- 2. Login with API key ----
-        await click(page, "cta-launch", "text=Launch Demo")
+        await click(page, "cta-launch", "text=Launch App")
         await settle(page, 2500)
         await verify(page, "login")
         await fill(page, "apikey", "input[placeholder='sk_live_...']", API_KEY)

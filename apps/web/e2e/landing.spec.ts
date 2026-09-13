@@ -10,10 +10,10 @@ test.describe("landing page", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Cross-border payment infrastructure/,
+        name: /Move money across borders/,
       })
     ).toBeVisible();
-    await expect(page.getByText("Testnet: Apothem").first()).toBeVisible();
+    await expect(page.getByText(/Apothem testnet/).first()).toBeVisible();
   });
 
   test("shows on-chain proof with xdcscan links", async ({ page }) => {

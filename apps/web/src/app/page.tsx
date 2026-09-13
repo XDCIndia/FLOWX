@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import FluidCanvas from "@/components/landing/fluid-canvas";
 import {
   AlertTriangle,
   ArrowRight,
@@ -119,78 +120,73 @@ function GithubMark({ className }: { className?: string }) {
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-[#060709] text-zinc-300">
-      {/* Header */}
-      <header className="border-b border-white/10">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+      {/* White hero — original landing.html theme (fluid ink canvas) */}
+      <section className="relative overflow-hidden bg-white text-zinc-900">
+        <FluidCanvas />
+        {/* white scrim keeps the ink behind the text legible */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_75%_65%_at_50%_45%,rgba(255,255,255,0.85),rgba(255,255,255,0.35)_60%,rgba(255,255,255,0))]"
+        />
+        <header className="relative mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500 text-sm font-bold text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-sm font-bold text-white">
               F
             </div>
-            <span className="text-lg font-semibold text-zinc-100">FlowX</span>
+            <span className="text-lg font-semibold text-zinc-900">FlowX</span>
           </Link>
-          <nav className="hidden items-center gap-8 text-sm text-zinc-400 md:flex">
-            <a href="#architecture" className="transition-colors hover:text-zinc-100">Architecture</a>
-            <a href="#proof" className="transition-colors hover:text-zinc-100">Proof</a>
-            <a href="#features" className="transition-colors hover:text-zinc-100">Features</a>
+          <nav className="hidden items-center gap-1 rounded-full border border-zinc-900/10 bg-white/60 px-2 py-1.5 text-sm text-zinc-500 backdrop-blur md:flex">
+            <a href="#architecture" className="rounded-full px-3 py-1 transition-colors hover:text-zinc-900">How it works</a>
+            <a href="#proof" className="rounded-full px-3 py-1 transition-colors hover:text-zinc-900">Proof</a>
+            <a href="#features" className="rounded-full px-3 py-1 transition-colors hover:text-zinc-900">Features</a>
           </nav>
           <div className="flex items-center gap-3">
             <a
               href="https://github.com/XDCIndia/FLOWX"
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-white/5 hover:text-zinc-100"
+              className="rounded-lg p-2 text-zinc-500 transition-colors hover:bg-zinc-900/5 hover:text-zinc-900"
               aria-label="FlowX on GitHub"
             >
               <GithubMark className="h-5 w-5" />
             </a>
             <Link
               href="/login"
-              className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-400"
+              className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700"
             >
-              Sign in
+              Launch App
             </Link>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(99,91,255,0.16),transparent_70%)]"
-        />
-        <div className="relative mx-auto max-w-4xl px-6 py-24 text-center sm:py-32">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">
+        <div className="relative mx-auto max-w-4xl px-6 pb-28 pt-14 text-center sm:pt-20">
+          <p className="inline-flex items-center gap-2 rounded-full border border-zinc-900/10 bg-white/60 px-3 py-1 text-xs font-medium text-zinc-500 backdrop-blur">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
             </span>
-            Testnet: Apothem
-          </div>
-          <h1 className="mt-6 text-4xl font-bold tracking-tight text-zinc-50 sm:text-5xl lg:text-6xl">
-            Cross-border payment infrastructure{" "}
-            <span className="bg-gradient-to-r from-indigo-400 to-emerald-400 bg-clip-text text-transparent">
-              on XDC Network
-            </span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-zinc-400">
-            A programmable payments API with wallets, FX, batch payouts, and a route engine that
-            picks the cheapest settlement leg — direct on-chain, AMM swap, or bank rail. Deployed,
-            seeded, and verified on-chain.
+            Live on the XDC Apothem testnet · Chain ID 51
           </p>
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <h1 className="mt-6 text-4xl font-bold tracking-tight text-zinc-900 animate-in fade-in slide-in-from-bottom-4 duration-700 sm:text-6xl lg:text-7xl">
+            Move money across borders on the XDC Network.
+          </h1>
+          <p className="mx-auto mt-6 max-w-2xl text-lg text-zinc-500 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            An open, programmable payments platform — EVM-native wallets, cross-border transfers,
+            FX conversion and on-chain settlement behind one clean REST API.
+          </p>
+          <div className="mx-auto mt-10 flex max-w-md items-center gap-2 rounded-full border border-zinc-900/10 bg-white/60 p-1.5 shadow-sm backdrop-blur animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <input
+              type="email"
+              placeholder="you@company.com"
+              aria-label="Work email"
+              className="w-full flex-1 bg-transparent px-4 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
+            />
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-colors hover:bg-indigo-400"
+              className="shrink-0 rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-700"
             >
-              Launch Demo <ArrowRight className="h-4 w-4" />
+              Launch App →
             </Link>
-            <a
-              href="#proof"
-              className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-zinc-100 transition-colors hover:bg-white/10"
-            >
-              View Contracts <ExternalLink className="h-4 w-4" />
-            </a>
           </div>
         </div>
       </section>

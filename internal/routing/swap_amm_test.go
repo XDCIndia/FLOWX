@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"strings"
 	"context"
 	"errors"
 	"math/big"
@@ -169,4 +170,17 @@ func TestAMMSwapRoute_Quote_ReserveReaderError(t *testing.T) {
 	_, err := r.Quote(context.Background(), "TXDC", "USDC", decimal.NewFromInt(1))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "rpc down")
+}
+
+func TestStatusAcceptsRealTxHash(t *testing.T) {
+	r := NewAMMSwapRoute("http://localhost:1", "0x4a3A728562847A1fD9aFDBD81356533eb05b12cD", "0xe069a90d55fdECa2cBec7793712aA3D807fFEF9b", "deadbeef")
+	// 64-hex tx hash must pass validation (fails later at RPC dial, not at ref check)
+	_, err := r.Status(context.Background(), "0x7f23e14a6ae79db25aee72d3c9329bb17c8a4581ca9860dfc9edc1e80aa2c771")
+	if err != nil && strings.Contains(err.Error(), "not a tx hash") {
+		t.Fatalf("real tx hash rejected: %v", err)
+	}
+	// garbage must be rejected
+	if _, err := r.Status(context.Background(), "RIPPLE-ODL-123"); err == nil || !strings.Contains(err.Error(), "not a tx hash") {
+		t.Fatalf("garbage reference should be rejected, got: %v", err)
+	}
 }

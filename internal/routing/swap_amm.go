@@ -2,6 +2,7 @@ package routing
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -432,7 +433,11 @@ func (r *AMMSwapRoute) Status(ctx context.Context, reference string) (string, er
 	if err := r.configErr(); err != nil {
 		return "", err
 	}
-	if !common.IsHexAddress(strings.TrimPrefix(reference, "0x")) && !common.IsHexAddress(reference) {
+	ref := strings.TrimPrefix(strings.TrimPrefix(reference, "0x"), "xdc")
+	if len(ref) != 64 {
+		return "", fmt.Errorf("amm swap: reference %q is not a tx hash", reference)
+	}
+	if _, err := hex.DecodeString(ref); err != nil {
 		return "", fmt.Errorf("amm swap: reference %q is not a tx hash", reference)
 	}
 	ec, err := r.ensureClient(ctx)

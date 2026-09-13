@@ -180,13 +180,27 @@ func (r *WalletRepo) UpdateSyncCursor(ctx context.Context, walletID, cursor stri
 	return nil
 }
 
-// Delete removes a wallet and its cascaded balances by ID.
+// Delete removes a wallet and its cascaded balances by ID. When a tenant ID
+// is present in the context the delete is scoped to that tenant, so one
+// tenant can never delete another tenant's wallet; with no tenant in context
+// (system calls) the delete applies globally. A delete that matches no row
+// returns domain.ErrWalletNotFound.
 func (r *WalletRepo) Delete(ctx context.Context, id string) error {
-	_, err := r.db.Exec(ctx,
-		"DELETE FROM wallets WHERE id = $1", id,
-	)
+	tID := tenant.IDFromContext(ctx)
+
+	query := `DELETE FROM wallets WHERE id = $1`
+	args := []interface{}{id}
+	if tID != "" {
+		query += ` AND tenant_id = $2`
+		args = append(args, tID)
+	}
+
+	tag, err := r.db.Exec(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("delete wallet: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrWalletNotFound
 	}
 	return nil
 }

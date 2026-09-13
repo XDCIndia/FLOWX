@@ -223,6 +223,13 @@ func (s *service) Deliver(ctx context.Context, deliveryID string) error {
 			return fmt.Errorf("build webhook request: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
+		// Canonical header names per docs/webhook-verification — consumers
+		// verify against X-Fluxa-Signature / X-Fluxa-Timestamp. The legacy
+		// X-FlowX-* aliases are kept (deprecated) so integrations that coded
+		// against the old emitted names keep working.
+		req.Header.Set("X-Fluxa-Signature", sig)
+		req.Header.Set("X-Fluxa-Timestamp", timestamp)
+		req.Header.Set("X-Fluxa-Event", string(delivery.EventType))
 		req.Header.Set("X-FlowX-Signature", sig)
 		req.Header.Set("X-FlowX-Timestamp", timestamp)
 		req.Header.Set("X-FlowX-Event", string(delivery.EventType))

@@ -7,6 +7,8 @@ import "testing"
 // to minimize merge conflicts.
 func TestLoadAMMPoolAddress(t *testing.T) {
 	setRequiredEnv(t)
+	// Isolate from ambient env / repo .env: the default must be empty.
+	t.Setenv("AMM_POOL_ADDRESS", "")
 
 	// Default: unset must stay empty (route disabled).
 	cfg, err := Load()

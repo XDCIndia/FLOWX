@@ -15,7 +15,11 @@ import (
 // PaymentNetworkRoute quotes fiat→fiat corridors ("Ripple ODL" style rail).
 // Rates come live from the FX service (units of `to` per 1 `from`); the
 // static map is only a resilience fallback when the FX feed is unreachable.
-// Execution itself is not wired to a real provider — see Execute.
+//
+// Execution is NOT wired to a real Ripple/provider account: there is no
+// liquidity-provider partnership, so Execute fails loudly rather than
+// fabricating a reference. For a real executable TXDC<->USDC leg use the
+// amm_swap route (our own on-chain AMM) or stripe_bank.
 type PaymentNetworkRoute struct {
 	corridor string
 	rate     decimal.Decimal // static fallback only
@@ -81,10 +85,13 @@ func (r *PaymentNetworkRoute) Quote(ctx context.Context, from, to string, amount
 	}, nil
 }
 
-// Execute is NOT wired to a real Ripple/provider account — it returns a
-// locally-generated reference so demo flows complete end-to-end.
+// Execute refuses to run: the Ripple ODL leg has no liquidity-provider
+// partnership behind it, so there is nothing real to execute against.
+// Previously this fabricated a "RIPPLE-ODL-%d" reference with zero real
+// payment activity — that behavior is removed. Use the amm_swap route
+// (real on-chain AMM swap) or stripe_bank for executable corridors.
 func (r *PaymentNetworkRoute) Execute(_ context.Context, _ routing.PaymentRequest, _ *routing.RouteQuote) (string, error) {
-	return fmt.Sprintf("RIPPLE-ODL-%d", time.Now().UnixNano()%1000000), nil
+	return "", fmt.Errorf("ripple ODL requires a Ripple liquidity-provider partnership; use amm_swap or stripe_bank routes")
 }
 
 func (r *PaymentNetworkRoute) Status(_ context.Context, _ string) (string, error) {

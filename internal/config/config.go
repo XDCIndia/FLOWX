@@ -25,6 +25,10 @@ type Config struct {
 	XDCChainID             int64
 	XDCTreasurySecretKey   string // funds new wallets on Apothem (testnet model)
 	XDCUSDCContractAddress string // FlowXUSD ERC-20 on Apothem ("" = USDC disabled)
+	// AMMPoolAddress is the deployed FlowXPool (constant-product AMM) on
+	// Apothem. "" disables the amm_swap route (quotes return an error and
+	// cmd/api skips registering it). AMM_POOL_ADDRESS.
+	AMMPoolAddress string
 	// TestnetFaucetEnabled gates POST /v1/wallets/{id}/faucet. Default false:
 	// the faucet mints/sends real testnet value, so it stays off unless a
 	// deployment explicitly opts in. TESTNET_FAUCET_ENABLED.
@@ -162,6 +166,7 @@ func Load() (*Config, error) {
 		XDCChainID:                  viper.GetInt64("XDC_CHAIN_ID"),
 		XDCTreasurySecretKey:        viper.GetString("XDC_TREASURY_SECRET_KEY"),
 		XDCUSDCContractAddress:      viper.GetString("XDC_USDC_CONTRACT_ADDRESS"),
+		AMMPoolAddress:              viper.GetString("AMM_POOL_ADDRESS"),
 		TestnetFaucetEnabled:        faucetEnabled,
 		FaucetMaxAmount:             viper.GetFloat64("FAUCET_MAX_AMOUNT"),
 		MasterEncryptionKey:         keyBytes,

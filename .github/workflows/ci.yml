@@ -65,6 +65,40 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:3000
 
+  web-e2e:
+    name: Web e2e (hermetic)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build web
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3000
+
+      - name: Install Playwright browser
+        run: npx playwright install chromium --with-deps
+
+      # Hermetic specs only (landing/static). API-backed specs self-skip
+      # without E2E_FULL_STACK; full-stack runs are documented in
+      # apps/web/e2e/README.md. No PLAYWRIGHT_BASE_URL here on purpose:
+      # the config boots `next start` itself in CI.
+      - name: Run e2e
+        run: npm run test:e2e
+
   sdk:
     name: SDK
     runs-on: ubuntu-latest

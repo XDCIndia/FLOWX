@@ -29,7 +29,6 @@ import (
 	"github.com/fluxa/fluxa/internal/server"
 	"github.com/fluxa/fluxa/internal/server/idempotency"
 	"github.com/fluxa/fluxa/internal/settlement"
-	"github.com/fluxa/fluxa/internal/chain/xdc"
 	"github.com/fluxa/fluxa/internal/transfer"
 	"github.com/fluxa/fluxa/internal/wallet"
 	"github.com/fluxa/fluxa/internal/webhook"

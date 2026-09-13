@@ -12,7 +12,6 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/fluxa/fluxa/internal/domain"
-	"github.com/fluxa/fluxa/internal/stellar"
 	"github.com/fluxa/fluxa/internal/wallet"
 )
 
@@ -51,7 +50,6 @@ func (m *faucetMockSvc) ExecuteTransfer(_ context.Context, _, _, _, _ string, _ 
 func (m *faucetMockSvc) VerifyDeposit(_ context.Context, _, _ string) (*domain.Transaction, error) {
 	return nil, nil
 }
-func (m *faucetMockSvc) WithSigner(_ stellar.Signer) wallet.Service   { return m }
 func (m *faucetMockSvc) WithFXService(_ wallet.FXRateGetter) wallet.Service { return m }
 func (m *faucetMockSvc) WithIssuers(_, _ string) wallet.Service      { return m }
 func (m *faucetMockSvc) Delete(_ context.Context, _ string) error    { return nil }

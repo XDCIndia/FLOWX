@@ -3,6 +3,8 @@ package wallet
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/shopspring/decimal"
 
@@ -15,10 +17,49 @@ type Handler struct {
 	contractSvc  ContractService
 	idem         func(http.Handler) http.Handler
 	guardianGate func(http.Handler) http.Handler
+
+	// Faucet gating (testnet only). Disabled by default; when enabled,
+	// per-request amounts are capped at faucetMax and each wallet may draw
+	// at most faucetMax per UTC day.
+	faucetEnabled bool
+	faucetMax     float64
+	faucetMu      sync.Mutex
+	faucetDaily   map[string]float64 // walletID+date -> amount drawn today
 }
 
 func NewHandler(svc Service) *Handler {
-	return &Handler{svc: svc}
+	return &Handler{svc: svc, faucetDaily: map[string]float64{}}
+}
+
+// WithFaucet enables the testnet faucet with an amount cap. maxAmount is in
+// whole asset units and doubles as the per-wallet daily draw limit. When
+// enabled=false the faucet route still exists but answers 404, so probing
+// clients cannot distinguish "disabled" from "missing wallet".
+func (h *Handler) WithFaucet(enabled bool, maxAmount float64) *Handler {
+	h.faucetEnabled = enabled
+	if maxAmount > 0 {
+		h.faucetMax = maxAmount
+	}
+	return h
+}
+
+// faucetDayKey buckets per-wallet usage by UTC day.
+func faucetDayKey(walletID string) string {
+	return walletID + "@" + time.Now().UTC().Format("2006-01-02")
+}
+
+// faucetCheckLimit records amount against the wallet's daily budget and
+// reports whether it fits. Not safe for multi-replica deployments; a Redis
+// counter swap is future work (see migration plan §9).
+func (h *Handler) faucetCheckLimit(walletID string, amount float64) bool {
+	h.faucetMu.Lock()
+	defer h.faucetMu.Unlock()
+	key := faucetDayKey(walletID)
+	if h.faucetDaily[key]+amount > h.faucetMax {
+		return false
+	}
+	h.faucetDaily[key] += amount
+	return true
 }
 
 // WithContractService enables the contract-wallet endpoints. They are only
@@ -307,6 +348,10 @@ func (h *Handler) deleteWallet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) faucet(w http.ResponseWriter, r *http.Request) {
+	if !h.faucetEnabled {
+		http.NotFound(w, r)
+		return
+	}
 	walletID := chi.URLParam(r, "id")
 
 	var req struct {
@@ -323,6 +368,15 @@ func (h *Handler) faucet(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Amount <= 0 {
 		req.Amount = 1000
+	}
+
+	if h.faucetMax > 0 && req.Amount > h.faucetMax {
+		http.Error(w, `{"error":"amount exceeds faucet maximum"}`, http.StatusBadRequest)
+		return
+	}
+	if !h.faucetCheckLimit(walletID, req.Amount) {
+		http.Error(w, `{"error":"daily faucet limit reached for this wallet"}`, http.StatusTooManyRequests)
+		return
 	}
 
 	amt := decimal.NewFromFloat(req.Amount)
@@ -378,4 +432,3 @@ func (h *Handler) verifyDeposit(w http.ResponseWriter, r *http.Request) {
 		"asset":     tx.Asset,
 	})
 }
-

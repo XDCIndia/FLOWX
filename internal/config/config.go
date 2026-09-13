@@ -10,46 +10,54 @@ import (
 )
 
 type Config struct {
-	Port                        string
-	Env                         string
-	DatabaseURL                 string
-	ReplicaDatabaseURL          string
-	RedisURL                    string
-	RedisSentinelMasterName     string
-	RedisSentinelAddrs          []string
-	RedisSentinelPassword       string
-	StellarNetwork              string
-	StellarHorizonURL           string
-	StellarUSDCIssuer           string
-	StellarEURCIssuer           string
-	// ChainBackend selects the settlement backend: "stellar" (default) or
-	// "xdc". See docs/xdc-migration-plan.md.
-	ChainBackend         string
-	XDCRPCURL            string
-	XDCChainID           int64
-	XDCTreasurySecretKey string // funds new wallets on Apothem (testnet model)
-	MasterEncryptionKey         []byte
-	TreasurySecretKey           string
-	PlatformFeeWalletPublicKey  string
-	ColdStorageAddress          string
-	MigrationsPath              string
-	AlertWebhookURL             string
-	PlatformWalletID            string
-	FlutterwaveSecretKey        string
-	FlutterwaveWebhookHash      string
+	Port                    string
+	Env                     string
+	DatabaseURL             string
+	ReplicaDatabaseURL      string
+	RedisURL                string
+	RedisSentinelMasterName string
+	RedisSentinelAddrs      []string
+	RedisSentinelPassword   string
+	StellarNetwork          string
+	StellarHorizonURL       string
+	StellarUSDCIssuer       string
+	StellarEURCIssuer       string
+	// ChainBackend selects the settlement backend: "xdc" (default) or
+	// "stellar". See docs/xdc-migration-plan.md.
+	ChainBackend           string
+	XDCRPCURL              string
+	XDCChainID             int64
+	XDCTreasurySecretKey   string // funds new wallets on Apothem (testnet model)
+	XDCUSDCContractAddress string // FlowXUSD ERC-20 on Apothem ("" = USDC disabled)
+	// TestnetFaucetEnabled gates POST /v1/wallets/{id}/faucet. Default false:
+	// the faucet mints/sends real testnet value, so it stays off unless a
+	// deployment explicitly opts in. TESTNET_FAUCET_ENABLED.
+	TestnetFaucetEnabled bool
+	// FaucetMaxAmount caps a single faucet request (whole units) and doubles
+	// as the per-wallet daily limit. FAUCET_MAX_AMOUNT, default 1000.
+	FaucetMaxAmount            float64
+	MasterEncryptionKey        []byte
+	TreasurySecretKey          string
+	PlatformFeeWalletPublicKey string
+	ColdStorageAddress         string
+	MigrationsPath             string
+	AlertWebhookURL            string
+	PlatformWalletID           string
+	FlutterwaveSecretKey       string
+	FlutterwaveWebhookHash     string
 	// FIAT_RAIL selects the fiat provider: "flutterwave" (default) or
 	// "stripe". Exactly one rail is active (per-request provider selection
 	// is future work).
-	FIATRail           string
-	StripeSecretKey    string
+	FIATRail            string
+	StripeSecretKey     string
 	StripeWebhookSecret string
-	StripeSuccessURL   string
+	StripeSuccessURL    string
 	// FIAT_STATIC_RATES fixes fiat→crypto quotes for the testnet model:
 	// "NGN-USDC=0.000625,NGN-TXDC=0.00003125,..." (units of `to` per 1 `from`).
 	FIATStaticRates string
 	// AppBaseURL is the dashboard origin used for local mock links (payment
 	// simulator). Defaults to http://localhost:3001.
-	AppBaseURL string
+	AppBaseURL                  string
 	BalanceDiscrepancyThreshold string
 	JWTSecret                   string
 	CORSOrigins                 []string
@@ -90,9 +98,11 @@ func Load() (*Config, error) {
 	viper.SetDefault("ENV", "development")
 	viper.SetDefault("STELLAR_NETWORK", "testnet")
 	viper.SetDefault("STELLAR_HORIZON_URL", "https://horizon-testnet.stellar.org")
-	viper.SetDefault("CHAIN_BACKEND", "stellar")
+	viper.SetDefault("CHAIN_BACKEND", "xdc")
 	viper.SetDefault("XDC_RPC_URL", "https://rpc.apothem.network")
 	viper.SetDefault("XDC_CHAIN_ID", "51")
+	viper.SetDefault("TESTNET_FAUCET_ENABLED", "false")
+	viper.SetDefault("FAUCET_MAX_AMOUNT", "1000")
 	viper.SetDefault("MIGRATIONS_PATH", "db/migrations")
 	viper.SetDefault("FX_SPREAD_BPS", "50")
 	viper.SetDefault("JWT_SECRET", "fluxa-default-jwt-secret-key-change-in-production")
@@ -151,6 +161,7 @@ func Load() (*Config, error) {
 	ycSandbox, _ := strconv.ParseBool(viper.GetString("YELLOW_CARD_SANDBOX"))
 	complianceEnabled, _ := strconv.ParseBool(viper.GetString("COMPLIANCE_ENABLED"))
 	workerEnabled, _ := strconv.ParseBool(viper.GetString("WORKER_ENABLED"))
+	faucetEnabled, _ := strconv.ParseBool(viper.GetString("TESTNET_FAUCET_ENABLED"))
 
 	return &Config{
 		Port:                        viper.GetString("PORT"),
@@ -168,6 +179,9 @@ func Load() (*Config, error) {
 		XDCRPCURL:                   viper.GetString("XDC_RPC_URL"),
 		XDCChainID:                  viper.GetInt64("XDC_CHAIN_ID"),
 		XDCTreasurySecretKey:        viper.GetString("XDC_TREASURY_SECRET_KEY"),
+		XDCUSDCContractAddress:      viper.GetString("XDC_USDC_CONTRACT_ADDRESS"),
+		TestnetFaucetEnabled:        faucetEnabled,
+		FaucetMaxAmount:             viper.GetFloat64("FAUCET_MAX_AMOUNT"),
 		StellarEURCIssuer:           viper.GetString("STELLAR_EURC_ISSUER"),
 		MasterEncryptionKey:         keyBytes,
 		TreasurySecretKey:           viper.GetString("TREASURY_SECRET_KEY"),

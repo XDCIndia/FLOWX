@@ -15,12 +15,12 @@ import (
 	"github.com/fluxa/fluxa/internal/assets"
 	"github.com/fluxa/fluxa/internal/auth"
 	"github.com/fluxa/fluxa/internal/batch"
+	"github.com/fluxa/fluxa/internal/chain/xdc"
 	"github.com/fluxa/fluxa/internal/compliance"
 	"github.com/fluxa/fluxa/internal/config"
 	"github.com/fluxa/fluxa/internal/domain"
 	"github.com/fluxa/fluxa/internal/fees"
 	"github.com/fluxa/fluxa/internal/fiat"
-	"github.com/fluxa/fluxa/internal/routing"
 	"github.com/fluxa/fluxa/internal/fiat/flutterwave"
 	striperail "github.com/fluxa/fluxa/internal/fiat/stripe"
 	"github.com/fluxa/fluxa/internal/fx"
@@ -29,11 +29,11 @@ import (
 	"github.com/fluxa/fluxa/internal/postgres"
 	"github.com/fluxa/fluxa/internal/queue"
 	"github.com/fluxa/fluxa/internal/reconcile"
+	"github.com/fluxa/fluxa/internal/routing"
 	"github.com/fluxa/fluxa/internal/schedule"
 	"github.com/fluxa/fluxa/internal/server"
 	"github.com/fluxa/fluxa/internal/server/idempotency"
 	"github.com/fluxa/fluxa/internal/settlement"
-	"github.com/fluxa/fluxa/internal/chain/xdc"
 	"github.com/fluxa/fluxa/internal/stellar"
 	"github.com/fluxa/fluxa/internal/transfer"
 	"github.com/fluxa/fluxa/internal/treasury"
@@ -348,7 +348,9 @@ func main() {
 
 	authHandler := auth.NewHandler(authSvc)
 	orgHandler := org.NewHandler(orgSvc)
-	walletHandler := wallet.NewHandler(walletSvc).WithIdempotency(idemMW)
+	walletHandler := wallet.NewHandler(walletSvc).
+		WithIdempotency(idemMW).
+		WithFaucet(cfg.TestnetFaucetEnabled, cfg.FaucetMaxAmount)
 
 	// Contract wallets are opt-in: without an installed WASM hash the API keeps
 	// serving custodial wallets only and the contract routes stay unregistered.
@@ -425,7 +427,7 @@ func main() {
 				}
 				return nil
 			},
-			"worker":  func(ctx context.Context) error { return nil },
+			"worker": func(ctx context.Context) error { return nil },
 		},
 
 		orgRepo,

@@ -34,6 +34,8 @@ services:
         sync: false
       - key: XDC_RPC_URL
         value: https://rpc.apothem.network
+      - key: AMM_POOL_ADDRESS
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: MASTER_ENCRYPTION_KEY

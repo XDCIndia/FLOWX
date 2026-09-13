@@ -57,7 +57,11 @@ Compare and choose the best payment route:
 |-------|-------|-----|----------|
 | **Blockchain (XDC)** | 12 seconds | 0.5% | Instant settlement |
 | **Bank (Stripe)** | 3 days | 2% | Traditional banking |
-| **Ripple ODL** | 5 hours | 1.2% | Payment networks |
+| **AMM Swap (FlowXPool)** | ~10 seconds | 0.3% + gas | On-chain TXDC ↔ tUSDC via our own pool |
+
+The old "Ripple ODL" leg quotes only — it has no liquidity-provider
+partnership, so execution fails loudly rather than fabricating references.
+Use AMM Swap for a real executable on-chain leg.
 
 ### 5. Batch Payments
 - Send up to 100 transfers in one API call

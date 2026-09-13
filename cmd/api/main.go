@@ -267,6 +267,14 @@ func main() {
 	routingHandler.RegisterRoute(fiat.NewPaymentNetworkRoute("TXDC-INR", fxSvc))
 	routingHandler.RegisterRoute(routing.NewStripeBankRoute(cfg.StripeSecretKey, fxSvc))
 	routingHandler.RegisterRoute(routing.NewOnChainXDCRoute())
+	// AMM swap route: our own constant-product pool on Apothem. Registered
+	// only when both the pool and the tUSDC token address are configured;
+	// otherwise its Quote would error on every evaluation anyway.
+	if cfg.AMMPoolAddress != "" && cfg.XDCUSDCContractAddress != "" {
+		routingHandler.RegisterRoute(routing.NewAMMSwapRoute(cfg.XDCRPCURL, cfg.AMMPoolAddress, cfg.XDCUSDCContractAddress, cfg.XDCTreasurySecretKey))
+	} else {
+		log.Info().Msg("amm swap route: AMM_POOL_ADDRESS or XDC_USDC_CONTRACT_ADDRESS unset, route disabled")
+	}
 	fiatHandler := fiat.NewHandler(fiatSvc)
 	feeHandler := fees.NewHandler(feeSvc)
 	apikeyHandler := apikey.NewHandler(apiKeyRepo)

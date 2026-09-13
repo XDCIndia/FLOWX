@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import FluidCanvas from "@/components/landing/fluid-canvas";
+import SmoothScroll from "@/components/landing/smooth-scroll";
 import {
   AlertTriangle,
   ArrowRight,
@@ -120,6 +121,7 @@ function GithubMark({ className }: { className?: string }) {
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-white text-zinc-600">
+      <SmoothScroll />
       {/* White hero — original landing.html theme (fluid ink canvas) */}
       <section className="relative overflow-hidden bg-white text-zinc-900">
         <FluidCanvas />

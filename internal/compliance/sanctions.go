@@ -226,9 +226,9 @@ func (s *SanctionsScreener) Screen(_ context.Context, req domain.ScreeningReques
 	return domain.ScreeningDecision{Status: domain.ScreeningClear}, nil
 }
 
-// normalizeAddress upper-cases and trims a Stellar address. Stellar strkeys
-// are base32 and case-significant in practice, but SDN data is inconsistently
-// cased, so both sides are folded.
+// normalizeAddress upper-cases and trims an on-chain address. EVM hex
+// addresses are case-insensitive, and SDN data is inconsistently cased, so
+// both sides are folded.
 func normalizeAddress(a string) string {
 	return strings.ToUpper(strings.TrimSpace(a))
 }

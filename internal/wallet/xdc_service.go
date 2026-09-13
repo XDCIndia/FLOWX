@@ -17,7 +17,6 @@ import (
 	"github.com/fluxa/fluxa/internal/chain/xdc"
 	"github.com/fluxa/fluxa/internal/crypto"
 	"github.com/fluxa/fluxa/internal/domain"
-	"github.com/fluxa/fluxa/internal/stellar"
 	"github.com/fluxa/fluxa/internal/tenant"
 )
 
@@ -297,9 +296,6 @@ func (s *XDCService) ExecuteTransfer(
 
 	return s.chain.Transfer(ctx, string(secretBytes), destination, chain.NativeTXDC, txdcToWei(amount))
 }
-
-// WithSigner is Stellar-specific signing hooks; unused on XDC.
-func (s *XDCService) WithSigner(_ stellar.Signer) Service { return s }
 
 // WithFXService keeps interface parity; FX conversion is not wired on XDC yet.
 func (s *XDCService) WithFXService(_ FXRateGetter) Service { return s }

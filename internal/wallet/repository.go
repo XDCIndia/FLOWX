@@ -17,7 +17,7 @@ type Repository interface {
 	UpsertBalance(ctx context.Context, walletID, assetCode, issuer string, balance decimal.Decimal) error
 	// GetBalances returns all persisted balances for a wallet from DB cache.
 	GetBalances(ctx context.Context, walletID string) ([]domain.BalanceRecord, error)
-	// UpdateSyncCursor advances the Horizon paging token used to resume incremental sync.
+	// UpdateSyncCursor advances the paging token used to resume incremental sync.
 	UpdateSyncCursor(ctx context.Context, walletID, cursor string) error
 	Delete(ctx context.Context, walletID string) error
 }

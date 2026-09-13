@@ -41,7 +41,7 @@ type service struct {
 	platformWalletID string
 	providerName     string
 	// creditAsset is the on-chain asset credited on deposits and debited on
-	// withdrawals: USDC on Stellar, TXDC on the XDC backend. (The DB column
+	// withdrawals: TXDC on the XDC backend. (The DB column
 	// is named usdc_amount for schema compatibility — it stores creditAsset
 	// units on XDC.)
 	creditAsset string

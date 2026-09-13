@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -36,7 +37,6 @@ var coinGeckoIDs = map[string]string{
 	"XDC":  "xdce-crowd-sale",
 	"TXDC": "xdce-crowd-sale",
 	"USDC": "usd-coin",
-	"XLM":  "stellar",
 }
 
 // coinGeckoFiat are fiat codes usable as quote legs via vs_currencies.
@@ -52,7 +52,7 @@ var coinGeckoFiat = map[string]bool{
 }
 
 // coinGeckoAssets is the full pair universe advertised by SupportedPairs.
-var coinGeckoAssets = []string{"USDC", "XDC", "TXDC", "XLM", "USD", "NGN", "INR", "EUR", "GBP", "KES", "GHS", "ZAR"}
+var coinGeckoAssets = []string{"USDC", "XDC", "TXDC", "USD", "NGN", "INR", "EUR", "GBP", "KES", "GHS", "ZAR"}
 
 const coinGeckoPriceTTL = 30 * time.Second
 
@@ -120,7 +120,7 @@ func (p *CoinGeckoProvider) GetRate(ctx context.Context, from, to, _ string) (de
 			// Use direct USD conversion if fiat/USD not available (e.g., INR)
 			// CoinGecko fiat prices are vs_currencies, so INR/USD ~ 83
 			// We need fiat_per_usd, so use a hardcoded fallback or try other cryptos
-			for _, anchorID := range []string{"usd-coin", "xdce-crowd-sale", "stellar"} {
+			for _, anchorID := range []string{"usd-coin", "xdce-crowd-sale"} {
 				p, ok3 := prices[anchorID][strings.ToLower(to)]
 				if ok3 && !p.IsZero() {
 					return cryptoUSD.Mul(p), nil
@@ -140,7 +140,7 @@ func (p *CoinGeckoProvider) GetRate(ctx context.Context, from, to, _ string) (de
 	}
 	// fiat -> fiat: cross both fiats through a crypto quote. USDC is
 	// preferred as the anchor (USD-pegged, so it tracks fiat feeds best).
-	for _, id := range []string{"usd-coin", "xdce-crowd-sale", "stellar"} {
+	for _, id := range []string{"usd-coin", "xdce-crowd-sale"} {
 		pFrom, ok1 := prices[id][strings.ToLower(from)]
 		pTo, ok2 := prices[id][strings.ToLower(to)]
 		if ok1 && ok2 && !pFrom.IsZero() {
@@ -168,6 +168,7 @@ func (p *CoinGeckoProvider) priceMatrix(ctx context.Context) (map[string]map[str
 			ids = append(ids, id)
 		}
 	}
+	sort.Strings(ids)
 	url := fmt.Sprintf("%s/simple/price?ids=%s&vs_currencies=usd,ngn,inr,eur,gbp,kes,ghs,zar", p.baseURL, strings.Join(ids, ","))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/fluxa/fluxa/internal/anchor"
 	"github.com/fluxa/fluxa/internal/apikey"
 	"github.com/fluxa/fluxa/internal/auth"
 	"github.com/fluxa/fluxa/internal/batch"
@@ -20,11 +19,9 @@ import (
 	fluxahealth "github.com/fluxa/fluxa/internal/health"
 	"github.com/fluxa/fluxa/internal/org"
 	"github.com/fluxa/fluxa/internal/postgres"
-	"github.com/fluxa/fluxa/internal/reconcile"
 	"github.com/fluxa/fluxa/internal/schedule"
 	"github.com/fluxa/fluxa/internal/tenant"
 	"github.com/fluxa/fluxa/internal/transfer"
-	"github.com/fluxa/fluxa/internal/treasury"
 	"github.com/fluxa/fluxa/internal/wallet"
 	"github.com/fluxa/fluxa/internal/webhook"
 	"github.com/go-chi/chi/v5"
@@ -43,17 +40,13 @@ func New(
 	transferHandler *transfer.Handler,
 	fxHandler *fx.Handler,
 	fiatHandler *fiat.Handler,
-	anchorFiatHandler *fiat.AnchorHandler,
-	anchorHandler *anchor.Handler,
 	feeHandler *fees.Handler,
-	reconcileHandler *reconcile.Handler,
 	apikeyHandler *apikey.Handler,
 	apiKeyRepo *postgres.APIKeyRepo,
 	txRepo *postgres.TransactionRepo,
 	webhookHandler *webhook.Handler,
 	batchHandler *batch.Handler,
 	scheduleHandler *schedule.Handler,
-	treasuryHandler *treasury.Handler,
 	complianceHandler *compliance.Handler,
 	routingHandler *routing.Handler,
 	corsOrigins []string,
@@ -149,7 +142,6 @@ func New(
 				r.Route("/wallets", walletHandler.Routes())
 				r.Route("/wallets/{id}/deposit", fiatHandler.DepositRoutes())
 				r.Route("/wallets/{id}/withdraw", fiatHandler.WithdrawRoutes())
-				r.Route("/fiat", anchorFiatHandler.Routes())
 				r.Route("/transfers", transferHandler.Routes())
 				r.Route("/transfers/batch", batchHandler.Routes())
 				r.Route("/transactions", transferHandler.TransactionRoutes())
@@ -163,12 +155,6 @@ func New(
 			r.Group(func(r chi.Router) {
 				r.Use(RequireRole(domain.RoleOwner, domain.RoleAdmin))
 				r.Route("/admin/fees", feeHandler.AdminRoutes())
-				r.Route("/admin/anchors", anchorHandler.AdminRoutes())
-				r.Route("/admin", reconcileHandler.AdminRoutes())
-				r.Route("/admin/treasury", treasuryHandler.AdminRoutes())
-				// Mounted at /admin/compliance, not /admin: reconcileHandler
-				// already owns the bare /admin pattern above, and chi panics
-				// when two sub-routers share one.
 				if complianceHandler != nil {
 					r.Route("/admin/compliance", complianceHandler.AdminRoutes())
 				}

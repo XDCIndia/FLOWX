@@ -21,7 +21,6 @@ func TestCoinGeckoProvider_SupportedPairs(t *testing.T) {
 	assert.Contains(t, pairs, "NGN-TXDC")
 	assert.Contains(t, pairs, "TXDC-NGN")
 	assert.Contains(t, pairs, "USD-NGN")
-	assert.Contains(t, pairs, "XLM-TXDC")
 	assert.NotContains(t, pairs, "USDC-USDC")
 	assert.NotContains(t, pairs, "BTC-USDC")
 }
@@ -29,10 +28,10 @@ func TestCoinGeckoProvider_SupportedPairs(t *testing.T) {
 func TestCoinGeckoProvider_GetRate(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/simple/price", r.URL.Path)
-		assert.Contains(t, r.URL.RawQuery, "ids=xdce-crowd-sale")
+		assert.Contains(t, r.URL.RawQuery, "xdce-crowd-sale")
 		assert.Contains(t, r.URL.RawQuery, "vs_currencies=usd")
 		assert.Contains(t, r.URL.RawQuery, "ngn")
-		_, _ = w.Write([]byte(`{"xdce-crowd-sale":{"usd":0.024,"ngn":38},"usd-coin":{"usd":1.002,"ngn":1590},"stellar":{"usd":0.1,"ngn":160}}`))
+		_, _ = w.Write([]byte(`{"xdce-crowd-sale":{"usd":0.024,"ngn":38},"usd-coin":{"usd":1.002,"ngn":1590}}`))
 	}))
 	defer srv.Close()
 
@@ -44,7 +43,6 @@ func TestCoinGeckoProvider_GetRate(t *testing.T) {
 		"XDC-USDC":  "0.0239520958083832335329",
 		"USDC-XDC":  "41.75",
 		"TXDC-USDC": "0.0239520958083832335329",
-		"XLM-TXDC":  "4.1666666666666666667",
 		// crypto -> fiat direct
 		"TXDC-NGN": "38",
 		"XDC-USD":  "0.024",

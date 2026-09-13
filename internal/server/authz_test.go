@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fluxa/fluxa/internal/anchor"
 	"github.com/fluxa/fluxa/internal/apikey"
 	"github.com/fluxa/fluxa/internal/auth"
 	"github.com/fluxa/fluxa/internal/batch"
@@ -16,11 +15,9 @@ import (
 	"github.com/fluxa/fluxa/internal/fiat"
 	"github.com/fluxa/fluxa/internal/fx"
 	"github.com/fluxa/fluxa/internal/org"
-	"github.com/fluxa/fluxa/internal/reconcile"
 	"github.com/fluxa/fluxa/internal/routing"
 	"github.com/fluxa/fluxa/internal/schedule"
 	"github.com/fluxa/fluxa/internal/transfer"
-	"github.com/fluxa/fluxa/internal/treasury"
 	"github.com/fluxa/fluxa/internal/wallet"
 	"github.com/fluxa/fluxa/internal/webhook"
 )
@@ -66,8 +63,6 @@ func (nilValidator) GetMember(_ context.Context, _, _ string) (*domain.OrgMember
 func newAuthzTestServerWithValidator(t *testing.T, validator MembershipValidator) *Server {
 	t.Helper()
 
-	treasuryHandler := treasury.NewHandler(nil).WithMutationGate(RequireRole(domain.RoleOwner, domain.RoleAdmin))
-
 	return New(
 		auth.NewHandler(nil),
 		org.NewHandler(nil),
@@ -75,17 +70,13 @@ func newAuthzTestServerWithValidator(t *testing.T, validator MembershipValidator
 		transfer.NewHandler(nil),
 		fx.NewHandler(nil),
 		fiat.NewHandler(nil),
-		fiat.NewAnchorHandler(nil),
-		anchor.NewHandler(nil),
 		fees.NewHandler(nil),
-		reconcile.NewHandler(nil),
 		apikey.NewHandler(nil),
 		nil, // apiKeyRepo
 		nil, // txRepo
 		webhook.NewHandler(nil),
 		batch.NewHandler(nil),
 		schedule.NewHandler(nil),
-		treasuryHandler,
 		nil,
 		routing.NewHandler(""),
 		nil, // corsOrigins
@@ -138,13 +129,6 @@ func TestAdminRoutesRequireOwnerOrAdmin(t *testing.T) {
 		path   string
 	}{
 		{http.MethodGet, "/v1/admin/fees/collected"},
-		{http.MethodGet, "/v1/admin/anchors"},
-		{http.MethodPost, "/v1/admin/anchors"},
-		{http.MethodGet, "/v1/admin/reconciliation/summary"},
-		{http.MethodPost, "/v1/admin/reconciliation/run"},
-		{http.MethodGet, "/v1/admin/treasury/balances"},
-		{http.MethodPost, "/v1/admin/treasury/sweep"},
-		{http.MethodPut, "/v1/admin/treasury/config"},
 	}
 
 	for _, rt := range routes {
@@ -255,7 +239,7 @@ func TestRevokedMembershipReturns403(t *testing.T) {
 	srv := newAuthzTestServerWithValidator(t, &nilValidator{})
 
 	// Try an admin-only route — should be 403, not 404 or 200.
-	code := doRequest(t, srv, http.MethodGet, "/v1/admin/anchors", domain.RoleOwner)
+	code := doRequest(t, srv, http.MethodGet, "/v1/admin/fees/collected", domain.RoleOwner)
 	if code != http.StatusForbidden {
 		t.Fatalf("revoked membership on admin route: expected 403, got %d", code)
 	}

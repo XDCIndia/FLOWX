@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/fluxa/fluxa/internal/domain"
-	"github.com/fluxa/fluxa/internal/reconcile"
 	"github.com/fluxa/fluxa/internal/tenant"
 	"github.com/jackc/pgx/v5"
 	"github.com/shopspring/decimal"
@@ -45,9 +44,8 @@ func (r *TransactionRepo) Create(ctx context.Context, tx *domain.Transaction) er
 	return nil
 }
 
-// ExistsByTxHash reports whether a transaction with the given Stellar hash has
-// already been recorded, used to keep indexer sync idempotent across restarts
-// and stream reconnects.
+// ExistsByTxHash reports whether a transaction with the given on-chain hash
+// has already been recorded, used to keep deposit verification idempotent.
 func (r *TransactionRepo) ExistsByTxHash(ctx context.Context, txHash string) (bool, error) {
 	var exists bool
 	err := r.db.QueryRow(ctx,
@@ -492,50 +490,6 @@ func (r *TransactionRepo) UpdateReconciledAt(ctx context.Context, id string) err
 	return nil
 }
 
-// WriteAuditLog inserts a row into the ledger_audit_log table.
-func (r *TransactionRepo) WriteAuditLog(ctx context.Context, entry *reconcile.AuditLogEntry) error {
-	_, err := r.db.Exec(ctx,
-		`INSERT INTO ledger_audit_log (id, tx_id, stellar_hash, checked_at, horizon_status, amount_verified, asset_verified, fee_verified, outcome, details)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-		entry.ID, entry.TxID, entry.StellarHash, entry.CheckedAt,
-		entry.HorizonStatus, entry.AmountVerified, entry.AssetVerified, entry.FeeVerified,
-		entry.Outcome, entry.Details,
-	)
-	if err != nil {
-		return fmt.Errorf("write audit log: %w", err)
-	}
-	return nil
-}
-
-// GetDailyReconciliationSummary returns counts grouped by day for the last 7 days.
-func (r *TransactionRepo) GetDailyReconciliationSummary(ctx context.Context, days int) ([]reconcile.DailySummaryRow, error) {
-	rows, err := r.db.Query(ctx,
-		`SELECT d::date AS date,
-		        COALESCE(SUM(CASE WHEN outcome = 'ok' THEN 1 ELSE 0 END), 0) AS ok_count,
-		        COALESCE(SUM(CASE WHEN outcome = 'mismatch' THEN 1 ELSE 0 END), 0) AS mismatch_count,
-		        COALESCE(SUM(CASE WHEN outcome = 'not_found' THEN 1 ELSE 0 END), 0) AS not_found_count
-		 FROM generate_series(CURRENT_DATE - $1::interval, CURRENT_DATE, '1 day') d
-		 LEFT JOIN ledger_audit_log ON checked_at::date = d::date
-		 GROUP BY d::date
-		 ORDER BY d::date DESC`,
-		fmt.Sprintf("%d days", days),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("get daily reconciliation summary: %w", err)
-	}
-	defer rows.Close()
-
-	var summary []reconcile.DailySummaryRow
-	for rows.Next() {
-		var row reconcile.DailySummaryRow
-		if err := rows.Scan(&row.Date, &row.OKCount, &row.MismatchCount, &row.NotFoundCount); err != nil {
-			return nil, err
-		}
-		summary = append(summary, row)
-	}
-	return summary, rows.Err()
-}
-
 // GetPendingStuckCount returns the count of transactions stuck in pending past the threshold.
 func (r *TransactionRepo) GetPendingStuckCount(ctx context.Context, olderThan time.Duration) (int, error) {
 	var count int
@@ -670,19 +624,6 @@ func (r *TransactionRepo) UpdateTxFailed(ctx context.Context, id string) error {
 	}
 	if tag.RowsAffected() == 0 {
 		return fmt.Errorf("update tx failed: %w", domain.ErrConcurrentUpdate)
-	}
-	return nil
-}
-
-// WriteReconciliationRun persists a record of a completed reconciliation pass.
-func (r *TransactionRepo) WriteReconciliationRun(ctx context.Context, run *reconcile.ReconciliationRun) error {
-	_, err := r.db.Exec(ctx,
-		`INSERT INTO reconciliation_runs (id, started_at, completed_at, txs_checked, discrepancies_found, corrections_made)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		run.ID, run.StartedAt, run.CompletedAt, run.TxsChecked, run.DiscrepanciesFound, run.CorrectionsMade,
-	)
-	if err != nil {
-		return fmt.Errorf("write reconciliation run: %w", err)
 	}
 	return nil
 }
